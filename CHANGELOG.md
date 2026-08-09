@@ -1,5 +1,15 @@
 # Was sich geändert hat
 
+## 0.5.0
+
+- **Der Testmodus erfüllt jetzt deine eigenen Regeln.** Bisher enthielt jeder erfundene Kommentar fest das Wort „dabei" — verlangtest du etwas anderes, fiel jede der 250 Teilnahmen durch
+- Nochmal drücken erzeugt frische Testteilnehmer, passend zu den aktuellen Bedingungen
+- **Teilnahmebedingungen stehen jetzt über dem Einlesen** — in der Reihenfolge, in der man sie braucht
+- **Veröffentlichen in zwei Schritten, klar benannt**: vor der Ziehung „Teilnahmebedingungen veröffentlichen" (keine Namen), danach „Nachweis veröffentlichen"
+- Die **Prüfsumme steht ab sofort schon vor der Ziehung** auf der Seite — nur so beweist sie überhaupt etwas
+- **Einstiegsliste im Dashboard**: acht Schritte vom leeren Tool bis zur fertigen Ziehung, jeder mit Begründung und Sprungknopf. Kein Handbuch nötig
+- **MIT-Lizenz** und ein README, das mit den drei Startschritten beginnt — damit andere das Tool ausprobieren können
+
 ## 0.4.2
 
 - **Das Repository-Feld versteht jetzt auch deine Veröffentlichungsadresse.** `https://deinname.github.io/gewinnspiele` wird richtig gelesen — vorher fiel der Name hinten weg und es blieb nur `https:/deinname.github.io` stehen

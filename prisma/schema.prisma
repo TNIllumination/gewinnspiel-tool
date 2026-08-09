@@ -92,6 +92,10 @@ model Settings {
   /// Wie lange eine veroeffentlichte Seite online bleibt. Steht so in der
   /// Datenschutzerklaerung — eine Angabe, die Art. 13 DSGVO verlangt.
   publishRetentionMonths Int @default(6)
+  /// Ob die Impressumsfrage beantwortet ist — auch "brauche ich nicht" ist
+  /// eine Antwort. Sonst bliebe die Einstiegsliste fuer private Verlosungen
+  /// ewig unvollstaendig.
+  impressumGeklaert Boolean @default(false)
   updatedAt DateTime @updatedAt
 }
 

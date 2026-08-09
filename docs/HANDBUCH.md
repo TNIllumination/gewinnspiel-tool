@@ -54,13 +54,21 @@ du siehst den kompletten Ablauf, und es kann nichts schiefgehen.
 
 1. **Neues Gewinnspiel** (rechts im Dashboard): Titel eintragen, als Plattform
    **Testmodus** ankreuzen, **Anlegen**
-2. **Teilnahmen einlesen** → *250 Testteilnehmer erzeugen*
-3. **Teilnahmebedingungen** → ein Wort eintragen, speichern
+2. **Teilnahmebedingungen** → ein Wort eintragen, speichern
+3. **Teilnahmen einlesen** → *250 Testteilnehmer erzeugen*
 4. **Gewinne** → einen Gewinn hinzufügen
 5. **Ziehung** → *Liste festschreiben*, dann *Jetzt ziehen*
 6. **Gewinner prüfen** → bestätigen
 
 Danach machst du dasselbe mit deinem echten Beitrag.
+
+> **Erst die Bedingungen, dann die Teilnehmer.** Die erfundenen Kommentare richten sich
+> nach deinen Regeln: Rund 70 % erfüllen alles, der Rest scheitert an genau einer
+> Bedingung — damit du siehst, wie das Tool begründet ablehnt. Änderst du die Regeln,
+> drück einfach nochmal auf *Testteilnehmer erzeugen*; dann kommen passende neue.
+
+> **Du musst nichts auswendig lernen.** Oben im Dashboard steht eine Liste, die dich
+> Schritt für Schritt durchführt und abhakt, was erledigt ist.
 
 > Du kannst auch mehrere Gewinne anlegen. Für jeden wird ein eigener Gewinner
 > gezogen, Nachrücker kommen zusätzlich obendrauf.
@@ -423,6 +431,19 @@ dich also daran, oder ändere die Zahl.
 
 Wie bei den Teilnahmebedingungen gilt: Das ist keine Rechtsberatung. Einmal von einem
 Anwalt gegenlesen lassen, dann steht es.
+
+### Veröffentlichen in zwei Schritten
+
+Das passiert nicht auf einmal, und das ist Absicht:
+
+1. **Vor der Ziehung**: *Teilnahmebedingungen veröffentlichen*. Online gehen nur die
+   Bedingungen — und, sobald du die Liste festgeschrieben hast, die Prüfsumme.
+   **Keine Namen.** Die Prüfsumme muss vorher öffentlich sein, sonst beweist sie
+   nichts: Sie ändert sich, sobald jemand nachträglich an der Liste dreht.
+2. **Nach der Ziehung**: *Nachweis veröffentlichen*. Jetzt kommen Teilnehmerliste,
+   Zufallszahl und Gewinner dazu. Damit kann jeder nachrechnen.
+
+Der Knopf heißt jeweils nach dem, was er tut, und fragt vorher nach.
 
 ### Impressum
 

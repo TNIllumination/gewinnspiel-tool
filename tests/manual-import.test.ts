@@ -151,7 +151,13 @@ describe("Testmodus", () => {
   });
 
   it("erzeugt gueltige und ungueltige Teilnahmen", () => {
-    const comments = generateSandboxComments({ count: 300, seed: "demo" });
+    // Die Regeln muessen mit — sonst prueft man gegen Bedingungen, von denen
+    // der Testmodus nichts weiss, und alles faellt durch.
+    const comments = generateSandboxComments({
+      count: 300,
+      seed: "demo",
+      regeln: { keywords: ["dabei"], mentionsMin: 2 },
+    });
     const summary = evaluateEntries(comments, [
       { type: "KEYWORD", config: { keywords: ["dabei"] } },
       { type: "MENTIONS", config: { min: 2 } },

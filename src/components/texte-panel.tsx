@@ -25,12 +25,16 @@ export function TextePanel({
   veroeffentlichen,
   slug,
   hochladen,
+  nachweis,
 }: {
   texte: () => Promise<TextsResult | { fehler?: string }>;
   veroeffentlichen: () => Promise<DateiErgebnis | { fehler?: string }>;
   slug: string;
   /// Ist ein Zugangsschlüssel hinterlegt, geht die Datei gleich online.
   hochladen: boolean;
+  /// Nach der Ziehung geht der Nachweis mit online — vorher nur die
+  /// Bedingungen. Der Knopf soll sagen, was er wirklich tut.
+  nachweis: boolean;
 }) {
   const [result, setResult] = useState<TextsResult | null>(null);
   const [datei, setDatei] = useState<DateiErgebnis | null>(null);
@@ -74,14 +78,10 @@ export function TextePanel({
           onClick={() => {
             // Ab hier stehen die Teilnehmernamen im Netz. Das soll ein
             // bewusster Klick sein, kein versehentlicher.
-            if (
-              hochladen &&
-              !window.confirm(
-                "Damit werden die Seite und die Teilnehmerliste öffentlich sichtbar. Fortfahren?",
-              )
-            ) {
-              return;
-            }
+            const frage = nachweis
+              ? "Damit werden Teilnehmerliste, Zufallszahl und Gewinner öffentlich sichtbar. Fortfahren?"
+              : "Damit gehen die Teilnahmebedingungen online — noch keine Namen. Fortfahren?";
+            if (hochladen && !window.confirm(frage)) return;
             run(async () => {
               const ergebnis = await veroeffentlichen();
               if (!("fileName" in ergebnis)) setError(ergebnis.fehler ?? "");
@@ -89,7 +89,13 @@ export function TextePanel({
             });
           }}
         >
-          {hochladen ? "Veröffentlichen und hochladen" : "Seite für GitHub erzeugen"}
+          {nachweis
+            ? hochladen
+              ? "Nachweis veröffentlichen"
+              : "Nachweis-Seite erzeugen"
+            : hochladen
+              ? "Teilnahmebedingungen veröffentlichen"
+              : "Seite mit den Bedingungen erzeugen"}
         </Button>
       </div>
 

@@ -76,7 +76,7 @@ try {
   }
 
   // Einfügen und PRÜFEN (darf noch nichts speichern)
-  await page.fill("textarea", PASTE);
+  await page.fill('textarea[name="importText"]', PASTE);
   await page.getByRole("button", { name: "Prüfen", exact: true }).click();
   await page.waitForFunction(
     () => document.body.innerText.includes("Teilnahmen erkannt"),

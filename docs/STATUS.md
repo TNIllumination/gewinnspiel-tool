@@ -94,6 +94,15 @@
   `""` und `saveSettings` lehnt es mit Meldung ab. `publishBaseUrl` wird aus dem
   Repository abgeleitet, weil zwei Felder für dieselbe Sache verwirrt haben.
 
+- **Fassung 0.5.0**: `generateSandboxComments` bekommt die gesetzten Regeln und baut
+  die Texte daraus; `importSandbox` loescht alte Testteilnehmer vorher, damit erneutes
+  Druecken wirkt. Karten „Teilnahmebedingungen" und „Teilnahmen einlesen" getauscht.
+  Veroeffentlichen in zwei benannten Schritten; `buildPublishPage` zeigt die Pruefsumme
+  schon nach dem Festschreiben. `einstiegsschritte()` + `src/components/einstieg.tsx`
+  als Einstiegsliste, `Settings.impressumGeklaert` als Merkfeld. `LICENSE` (MIT) und
+  README mit Startschritten. Neue Reihe `scripts/e2e-einstieg.mjs` (braucht eine
+  frische Datenbank).
+
 ## Als Nächstes
 
 1. PDF-Ziehungsprotokoll als Rechtsnachweis.

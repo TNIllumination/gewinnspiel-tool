@@ -52,7 +52,17 @@ try {
     .pop();
   ok("Gewinnspiel angelegt", slug);
 
-  // 3. Teilnahmen erzeugen
+  // 3. Erst die Regeln — der Testmodus richtet sich danach, sonst faellt
+  //    alles durch. Genau in dieser Reihenfolge steht es jetzt auch auf der
+  //    Seite.
+  await page.fill('input[name="keywords"]', "dabei");
+  await page.fill('input[name="mentionsMin"]', "2");
+  await page.getByRole("button", { name: /Regeln speichern/ }).click();
+  await page.waitForTimeout(2500);
+  await page.reload();
+  ok("Teilnahmebedingungen gesetzt");
+
+  // 4. Teilnahmen erzeugen
   await page.getByRole("button", { name: /Testteilnehmer erzeugen/ }).click();
   await page.waitForFunction(
     () => !document.body.innerText.includes("Einen Moment…"),
@@ -63,17 +73,6 @@ try {
 
   const statsGrid = page.locator("main > div.grid").first();
   ok("Teilnahmen eingelesen", (await statsGrid.innerText()).replace(/\s+/g, " ").trim());
-
-  // 4. Regeln setzen
-  await page.fill('input[name="keywords"]', "dabei");
-  await page.fill('input[name="mentionsMin"]', "2");
-  await page.getByRole("button", { name: /Regeln speichern/ }).click();
-  await page.waitForFunction(
-    () => !document.body.innerText.includes("Einen Moment…"),
-    null,
-    { timeout: 30000 },
-  );
-  await page.reload();
 
   const stats = await page.locator("main > div.grid").first().innerText();
   const numbers = stats.match(/\d+/g) ?? [];

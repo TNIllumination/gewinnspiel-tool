@@ -91,6 +91,7 @@ export function ManualImport({
         <Field label="Von welcher Plattform stammen diese Kommentare?">
           <select
             className={inputClass}
+            name="importPlatform"
             value={platform}
             onChange={(e) => {
               setPlatform(e.target.value);
@@ -110,6 +111,7 @@ export function ManualImport({
       <Field label={`Kommentare von ${aktivesLabel} einfügen`}>
         <textarea
           className={`${inputClass} h-40 font-mono text-xs`}
+          name="importText"
           value={raw}
           onChange={(e) => {
             setRaw(e.target.value);

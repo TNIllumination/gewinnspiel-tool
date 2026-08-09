@@ -193,52 +193,6 @@ export default async function GiveawayPage({
         </p>
       ) : null}
 
-      {/* ── Teilnahmen einlesen ───────────────────────────────────────── */}
-      {beforeCommit ? (
-        <Card>
-          <CardTitle hint="Kommentare einlesen — bei TikTok und Instagram in Etappen.">
-            Teilnahmen einlesen
-          </CardTitle>
-
-          {isSandbox ? (
-            <div className="mb-6">
-              <ActionForm
-                action={importSandbox.bind(null, id)}
-                submitLabel="250 Testteilnehmer erzeugen"
-                variant="secondary"
-              >
-                <p className="text-sm text-slate-600">
-                  Erzeugt erfundene Teilnehmer, davon absichtlich einige, die die Regeln
-                  nicht erfüllen — so siehst du, wie die Prüfung begründet ablehnt.
-                </p>
-              </ActionForm>
-            </div>
-          ) : null}
-
-          {importPlatforms.length > 0 ? (
-            <ManualImport
-              preview={previewManualImport}
-              confirm={confirmManualImport.bind(null, id) as (
-                platform: string,
-                raw: string,
-              ) => ReturnType<typeof confirmManualImport>}
-              platforms={importPlatforms}
-            />
-          ) : null}
-
-          {total > 0 ? (
-            <div className="mt-6 border-t border-slate-200 pt-4">
-              <ActionForm
-                action={clearEntries.bind(null, id)}
-                submitLabel="Alle Teilnahmen löschen"
-                variant="danger"
-                confirm="Wirklich alle eingelesenen Teilnahmen löschen?"
-              />
-            </div>
-          ) : null}
-        </Card>
-      ) : null}
-
       {/* ── Regeln ───────────────────────────────────────────────────── */}
       {beforeCommit ? (
         <Card>
@@ -432,6 +386,62 @@ export default async function GiveawayPage({
         </Card>
       ) : null}
 
+      {/* ── Teilnahmen einlesen ───────────────────────────────────────── */}
+      {beforeCommit ? (
+        <Card>
+          <CardTitle hint="Kommentare einlesen — bei TikTok und Instagram in Etappen.">
+            Teilnahmen einlesen
+          </CardTitle>
+
+          {giveaway.rules.length === 0 ? (
+            <div className="mb-4">
+              <Notice title="Erst die Teilnahmebedingungen" tone="warn">
+                Oben sind noch keine Regeln gesetzt — dann zählt jeder Kommentar als
+                gültig. Im Testmodus richten sich die erzeugten Teilnahmen außerdem
+                nach deinen Regeln, also lohnt es sich, sie vorher einzutragen.
+              </Notice>
+            </div>
+          ) : null}
+
+          {isSandbox ? (
+            <div className="mb-6">
+              <ActionForm
+                action={importSandbox.bind(null, id)}
+                submitLabel="250 Testteilnehmer erzeugen"
+                variant="secondary"
+              >
+                <p className="text-sm text-slate-600">
+                  Erzeugt erfundene Teilnehmer, davon absichtlich einige, die die Regeln
+                  nicht erfüllen — so siehst du, wie die Prüfung begründet ablehnt.
+                </p>
+              </ActionForm>
+            </div>
+          ) : null}
+
+          {importPlatforms.length > 0 ? (
+            <ManualImport
+              preview={previewManualImport}
+              confirm={confirmManualImport.bind(null, id) as (
+                platform: string,
+                raw: string,
+              ) => ReturnType<typeof confirmManualImport>}
+              platforms={importPlatforms}
+            />
+          ) : null}
+
+          {total > 0 ? (
+            <div className="mt-6 border-t border-slate-200 pt-4">
+              <ActionForm
+                action={clearEntries.bind(null, id)}
+                submitLabel="Alle Teilnahmen löschen"
+                variant="danger"
+                confirm="Wirklich alle eingelesenen Teilnahmen löschen?"
+              />
+            </div>
+          ) : null}
+        </Card>
+      ) : null}
+
       {/* ── Gewinne ──────────────────────────────────────────────────── */}
       <Card>
         <CardTitle hint="Für jeden Gewinn wird ein eigener Gewinner gezogen — Nachrücker kommen zusätzlich.">
@@ -488,11 +498,19 @@ export default async function GiveawayPage({
         <CardTitle hint="Für den Beitrag und für die öffentliche Seite auf GitHub.">
           Teilnahmebedingungen und Nachweis
         </CardTitle>
+        <p className="mb-4 text-sm text-slate-600">
+          Veröffentlicht wird in <strong>zwei Schritten</strong>. Vor der Ziehung gehen
+          nur die Teilnahmebedingungen online — und, sobald du die Liste
+          festgeschrieben hast, die Prüfsumme. <strong>Keine Namen.</strong> Erst nach
+          der Ziehung kommen Teilnehmerliste, Zufallszahl und Gewinner dazu; das ist
+          der Nachweis, mit dem jeder nachrechnen kann.
+        </p>
         <TextePanel
           texte={buildTexts.bind(null, id)}
           veroeffentlichen={publishPage.bind(null, id)}
           slug={giveaway.slug}
           hochladen={Boolean(settings?.githubToken)}
+          nachweis={Boolean(currentDraw?.seedRevealedAt)}
         />
       </Card>
 

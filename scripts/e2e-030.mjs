@@ -137,8 +137,8 @@ try {
 
   // ── Import in Etappen ─────────────────────────────────────────────────────
   const importieren = async (plattform, text) => {
-    await page.selectOption("select", { label: plattform });
-    await page.fill("textarea", text);
+    await page.selectOption('select[name="importPlatform"]', { label: plattform });
+    await page.fill('textarea[name="importText"]', text);
     await page.getByRole("button", { name: "Prüfen", exact: true }).click();
     await page.waitForFunction(
       () => document.body.innerText.includes("Teilnahmen erkannt"),
@@ -293,13 +293,14 @@ try {
   ok("Alle Gewinnplätze bestätigt");
 
   // ── Veröffentlichen und Hash nachrechnen ──────────────────────────────────
-  await page.getByRole("button", { name: "Seite für GitHub erzeugen" }).click();
+  // Nach der Ziehung heißt der Knopf nach dem, was er tut.
+  await page.getByRole("button", { name: "Nachweis-Seite erzeugen" }).click();
   await page.waitForFunction(
     () => document.body.innerText.includes("Datei erzeugt"),
     null,
     { timeout: 30000 },
   );
-  ok("Seite für GitHub erzeugt");
+  ok("Nachweis-Seite erzeugt");
 
   const html = readFileSync(`veroeffentlichung/${slug}.html`, "utf8");
   const liste = html.match(/<pre id="liste">([\s\S]*?)<\/pre>/)?.[1] ?? "";

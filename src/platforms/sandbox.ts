@@ -18,25 +18,18 @@ const LAST = [
   "koch", "weber", "schmidt", "fischer", "meyer", "wolf", "adler", "falke",
 ];
 
-const TEMPLATES = [
-  "Ich bin dabei! {tags}",
-  "Mega Aktion, ich bin dabei {tags}",
-  "Da mache ich mit {tags}",
-  "Ich bin dabei — {tags} schaut mal",
-  "Bin dabei! Drücke die Daumen {tags}",
-  "Sehr cool, ich bin dabei {tags}",
+/// Satzanfaenge ohne Schluesselwort — das kommt aus den echten Regeln dazu.
+const RUEMPFE = [
+  "Ich bin dabei",
+  "Mega Aktion, da mache ich mit",
+  "Sehr cool, ich mache mit",
+  "Das klingt großartig",
+  "Genau mein Ding",
+  "Da bin ich sofort dabei",
 ];
 
-/// Kommentare, die absichtlich durchfallen — damit sichtbar wird,
-/// dass die Regel-Engine begruendet ablehnt.
-const INVALID_TEMPLATES = [
-  "Schön!",
-  "Toll gemacht 👍",
-  "Ich bin dabei",
-  "Wo gibt es das zu kaufen?",
-  "@nur_einer ich bin dabei",
-  "❤️❤️❤️",
-];
+/// Zu kurz, egal welche Regel — fuer den Fall "Mindestlaenge".
+const ZU_KURZ = ["Top", "👍", "Cool", "Nice", "Ja!"];
 
 export interface SandboxOptions {
   count?: number;
@@ -46,6 +39,21 @@ export interface SandboxOptions {
   duplicateShare?: number;
   seed?: string;
   endsAt?: Date;
+  /// Die tatsaechlich gesetzten Regeln.
+  ///
+  /// Ohne sie erzeugte der Testmodus frueher immer denselben Text mit dem
+  /// Wort "dabei" — verlangte man etwas anderes, fiel jede einzelne der 250
+  /// Teilnahmen durch. Ein Testmodus, der vorfuehrt, dass nichts
+  /// funktioniert, ist schlimmer als keiner.
+  regeln?: SandboxRules;
+}
+
+export interface SandboxRules {
+  keywords?: string[];
+  /// "any" = eines genuegt, "all" = alle muessen vorkommen.
+  keywordMode?: string;
+  mentionsMin?: number;
+  minLength?: number;
 }
 
 export function generateSandboxComments(
@@ -57,7 +65,15 @@ export function generateSandboxComments(
     duplicateShare = 0.1,
     seed = "sandbox",
     endsAt = new Date(),
+    regeln = {},
   } = options;
+
+  const keywords = (regeln.keywords ?? []).filter(Boolean);
+  // Bei "alle noetig" muessen alle Woerter rein, sonst genuegt eines.
+  const noetig =
+    regeln.keywordMode === "all" ? keywords : keywords.slice(0, 1);
+  const mentionsMin = Math.max(regeln.mentionsMin ?? 0, 0);
+  const minLength = Math.max(regeln.minLength ?? 0, 0);
 
   const rng = new SeededRandom(seed);
   const pick = <T>(arr: T[]) => arr[rng.nextBelow(arr.length)];
@@ -73,13 +89,39 @@ export function generateSandboxComments(
 
     if (!reuse) usernames.push(username);
 
+    const markierungen = (anzahl: number) =>
+      Array.from({ length: anzahl }, () => `@${pick(FIRST)}_${pick(LAST)}`).join(" ");
+
+    /// Baut einen Kommentar, der wahlweise an genau einer Bedingung scheitert.
+    const baue = (fehler: "keins" | "wort" | "markierung" | "laenge") => {
+      if (fehler === "laenge") return pick(ZU_KURZ);
+
+      const woerter = fehler === "wort" ? [] : noetig;
+      const tags = markierungen(
+        fehler === "markierung" ? Math.max(mentionsMin - 1, 0) : mentionsMin,
+      );
+      let text = [pick(RUEMPFE), ...woerter, tags].filter(Boolean).join(" ");
+
+      // Mindestlaenge auffuellen, damit nicht versehentlich zwei Regeln
+      // gleichzeitig greifen — sonst waere die Begruendung nicht eindeutig.
+      if (minLength > 0) {
+        while (text.length < minLength) text += " und ich freue mich riesig";
+      }
+      return text;
+    };
+
     const valid = rng.nextBelow(100) < validShare * 100;
+    // Nur Bedingungen scheitern lassen, die es auch gibt.
+    const moeglich: ("wort" | "markierung" | "laenge")[] = [
+      ...(noetig.length > 0 ? (["wort"] as const) : []),
+      ...(mentionsMin > 0 ? (["markierung"] as const) : []),
+      ...(minLength > 0 ? (["laenge"] as const) : []),
+    ];
     const text = valid
-      ? pick(TEMPLATES).replace(
-          "{tags}",
-          `@${pick(FIRST)}_${pick(LAST)} @${pick(FIRST)}_${pick(LAST)}`,
-        )
-      : pick(INVALID_TEMPLATES);
+      ? baue("keins")
+      : moeglich.length > 0
+        ? baue(pick(moeglich))
+        : pick(ZU_KURZ);
 
     // Kommentare ueber die letzten 7 Tage verteilen.
     const minutesBack = rng.nextBelow(7 * 24 * 60);

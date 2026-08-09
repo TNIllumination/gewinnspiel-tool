@@ -4,7 +4,14 @@ import packageJson from "../../../package.json";
 import { db } from "@/lib/db";
 import { getSessionUserId } from "@/lib/auth";
 import { PLATFORMS, type PlatformId } from "@/platforms/base";
-import { createGiveaway, logout, shutdownServer } from "./actions";
+import {
+  createGiveaway,
+  einstiegsschritte,
+  impressumUebersprungen,
+  logout,
+  shutdownServer,
+} from "./actions";
+import { Einstieg } from "@/components/einstieg";
 import { ActionForm } from "@/components/action-form";
 import { BeendenButton } from "@/components/beenden-button";
 import {
@@ -58,6 +65,8 @@ const STATUS_LABELS: Record<string, { label: string; tone: "neutral" | "info" | 
 export default async function AdminPage() {
   if (!(await getSessionUserId())) redirect("/admin/login");
 
+  const schritte = await einstiegsschritte();
+
   const giveaways = await db.giveaway.findMany({
     orderBy: { createdAt: "desc" },
     include: {
@@ -101,6 +110,10 @@ export default async function AdminPage() {
           </div>
         }
       />
+
+      <div className="mb-8">
+        <Einstieg schritte={schritte} impressumUeberspringen={impressumUebersprungen} />
+      </div>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">

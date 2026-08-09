@@ -4,6 +4,27 @@ DSGVO-konformes Werkzeug, um Gewinnspiele auf **Instagram**, **TikTok** und **Yo
 auszuwerten: Kommentare einlesen, Teilnahmebedingungen automatisch prüfen und
 **nachweisbar fair** ziehen.
 
+Es läuft **auf deinem eigenen Rechner**. Kein Server, keine Anmeldung irgendwo, keine
+laufenden Kosten. Die Daten der Teilnehmer verlassen dein Gerät nur, wenn du selbst
+etwas veröffentlichst.
+
+## In drei Schritten loslegen
+
+1. **[Node.js installieren](https://nodejs.org)** — große grüne Schaltfläche, Variante
+   **LTS**, Weiter–Weiter–Fertig
+2. Hier oben auf **Code → Download ZIP**, entpacken (z. B. nach `Dokumente`) —
+   **nicht** nach „Programme", dort darf das Tool nichts anlegen
+3. **`start.bat`** doppelklicken (Mac/Linux: `start.sh`)
+
+Beim ersten Mal dauert es ein paar Minuten. Danach öffnet sich der Browser von selbst,
+und du legst dein Konto an. Im Tool führt dich eine Liste durch alles Weitere — das
+Handbuch brauchst du dafür nicht.
+
+**Fang mit dem Testmodus an.** Der erzeugt 250 erfundene Teilnehmer, du siehst den
+kompletten Ablauf, und es kann nichts schiefgehen.
+
+Ausführlich: **[Handbuch](docs/HANDBUCH.md)** — oder im Tool unter „Hilfe".
+
 ## Was das Tool kann — und was keine Plattform hergibt
 
 Ehrlichkeit an dieser Stelle spart später Ärger:

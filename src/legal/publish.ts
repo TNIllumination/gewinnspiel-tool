@@ -89,7 +89,26 @@ ${
 </p>
 <pre id="liste">${escapeHtml(canonicalize(d.entrants))}</pre>
 `
-    : `
+    : d
+      ? `
+<h2 id="nachweis">Nachweis der fairen Ziehung</h2>
+<p>
+  Die Teilnehmerliste ist <strong>festgeschrieben</strong>, die Ziehung hat noch
+  nicht stattgefunden. Die Prüfsumme unten steht damit <strong>vor</strong> der
+  Ziehung fest — genau darauf beruht der Nachweis: Sie ändert sich, sobald jemand
+  nachträglich an der Liste dreht.
+</p>
+<dl>
+  <dt>Teilnehmer</dt><dd>${d.entrantCount} · ${d.totalLots} Lose</dd>
+  <dt>Liste festgeschrieben</dt><dd>${formatDe(d.committedAt)}</dd>
+  <dt>Prüfsumme (SHA-256)</dt><dd><code>${escapeHtml(d.commitHash)}</code></dd>
+</dl>
+<p>
+  Nach der Ziehung kommen hier die Zufallszahl und die vollständige
+  Teilnehmerliste dazu, mit denen sich die Prüfsumme nachrechnen lässt.
+</p>
+`
+      : `
 <h2 id="nachweis">Nachweis der fairen Ziehung</h2>
 <p>Die Ziehung hat noch nicht stattgefunden. Nach der Ziehung stehen hier
 Prüfsumme, Zufallszahl und die vollständige Teilnehmerliste zum Nachrechnen.</p>

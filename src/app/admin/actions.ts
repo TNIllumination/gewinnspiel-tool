@@ -267,7 +267,34 @@ export async function importSandbox(giveawayId: string) {
   return alsErgebnis(async () => {
     const userId = await requireUser();
 
-    const comments = generateSandboxComments({ count: 250, seed: giveawayId });
+    // Die erzeugten Kommentare richten sich nach den gesetzten Regeln —
+    // sonst faellt alles durch, sobald ein eigenes Wort verlangt wird.
+    const rules = await db.rule.findMany({
+      where: { giveawayId, enabled: true },
+    });
+    const conf = (typ: string) =>
+      (rules.find((r) => r.type === typ)?.config ?? {}) as Record<string, unknown>;
+
+    const regeln = {
+      keywords: (conf("KEYWORD").keywords as string[]) ?? [],
+      keywordMode: String(conf("KEYWORD").mode ?? "any"),
+      mentionsMin: Number(conf("MENTIONS").min ?? 0),
+      minLength: Number(conf("MIN_LENGTH").min ?? 0),
+    };
+
+    // Alte Testteilnehmer weg, bevor neue kommen. Sonst passiert beim
+    // zweiten Druck gar nichts — die Kommentar-IDs waeren dieselben und
+    // gaelten als Dubletten. Wer nach dem Setzen der Regeln noch einmal
+    // drueckt, will aber genau: passende Teilnahmen.
+    await db.entry.deleteMany({ where: { giveawayId, platform: "SANDBOX" } });
+
+    const comments = generateSandboxComments({
+      count: 250,
+      // Die Regeln gehen in den Startwert ein, damit sich die erfundenen
+      // Teilnahmen aendern, sobald sich die Bedingungen aendern.
+      seed: `${giveawayId}|${JSON.stringify(regeln)}`,
+      regeln,
+    });
     const { added, skipped } = await storeComments(giveawayId, "SANDBOX", comments);
 
     await audit({
@@ -279,6 +306,10 @@ export async function importSandbox(giveawayId: string) {
     });
 
     await runEvaluation(giveawayId);
+
+    return {
+      ohneRegeln: regeln.keywords.length === 0 && !regeln.mentionsMin && !regeln.minLength,
+    };
   });
 }
 
@@ -1339,6 +1370,139 @@ export async function removeGitHubToken() {
     });
     revalidatePath("/admin/einstellungen");
   });
+}
+
+export interface Einstiegsschritt {
+  id: string;
+  titel: string;
+  warum: string;
+  erledigt: boolean;
+  ziel: string;
+  knopf: string;
+}
+
+/// Der Zustand der Einrichtung, abgeleitet aus der Datenbank.
+///
+/// Bewusst abgeleitet statt mitgeschrieben: So stimmt die Liste auch dann,
+/// wenn jemand die Reihenfolge umgeht, etwas wieder loescht oder Wochen
+/// spaeter weitermacht. Ein gespeicherter Fortschritt waere irgendwann
+/// gelogen.
+export async function einstiegsschritte(): Promise<Einstiegsschritt[]> {
+  await requireUser();
+
+  const [settings, giveaway, regeln, teilnahmen, gewinne, ziehung] =
+    await Promise.all([
+      db.settings.findUnique({ where: { id: "settings" } }),
+      db.giveaway.findFirst({ orderBy: { createdAt: "asc" } }),
+      db.rule.count(),
+      db.entry.count(),
+      db.prize.count(),
+      db.draw.count({ where: { seedRevealedAt: { not: null } } }),
+    ]);
+
+  const erstes = giveaway ? `/admin/${giveaway.id}` : "/admin";
+
+  return [
+    {
+      id: "veranstalter",
+      titel: "Veranstalter eintragen",
+      warum:
+        "Instagram und TikTok verlangen, dass in den Teilnahmebedingungen ein " +
+        "Ansprechpartner steht. Ohne Namen und Kontakt kann das Tool keinen " +
+        "vollständigen Rechtstext erzeugen.",
+      erledigt: Boolean(settings?.organizer?.trim() && settings?.contact?.trim()),
+      ziel: "/admin/einstellungen",
+      knopf: "Zu den Einstellungen",
+    },
+    {
+      id: "impressum",
+      titel: "Impressum klären",
+      warum:
+        "Wer geschäftlich auftritt, braucht auf veröffentlichten Seiten ein " +
+        "Impressum. Für eine private Verlosung im Freundeskreis nicht — dann " +
+        "hak den Schritt einfach ab.",
+      erledigt: Boolean(settings?.impressumUrl?.trim() || settings?.impressumGeklaert),
+      ziel: "/admin/einstellungen",
+      knopf: "Zu den Einstellungen",
+    },
+    {
+      id: "gewinnspiel",
+      titel: "Erstes Gewinnspiel anlegen",
+      warum:
+        "Fang im Testmodus an: 250 erfundene Teilnehmer, kompletter Ablauf, " +
+        "und es kann nichts schiefgehen.",
+      erledigt: Boolean(giveaway),
+      ziel: "/admin",
+      knopf: "Anlegen",
+    },
+    {
+      id: "regeln",
+      titel: "Teilnahmebedingungen setzen",
+      warum:
+        "Was muss im Kommentar stehen? Ohne Regeln zählt jeder Kommentar als " +
+        "gültig — und im Testmodus richten sich die erfundenen Teilnahmen " +
+        "danach.",
+      erledigt: regeln > 0,
+      ziel: erstes,
+      knopf: "Zum Gewinnspiel",
+    },
+    {
+      id: "teilnahmen",
+      titel: "Teilnahmen einlesen",
+      warum:
+        "Im Testmodus auf Knopfdruck. Bei TikTok und Instagram kopierst du die " +
+        "Kommentare — in Etappen, das Tool erkennt Dubletten.",
+      erledigt: teilnahmen > 0,
+      ziel: erstes,
+      knopf: "Zum Gewinnspiel",
+    },
+    {
+      id: "gewinne",
+      titel: "Gewinn anlegen",
+      warum: "Für jeden Gewinn wird ein eigener Gewinner gezogen.",
+      erledigt: gewinne > 0,
+      ziel: erstes,
+      knopf: "Zum Gewinnspiel",
+    },
+    {
+      id: "ziehung",
+      titel: "Ziehen und Gewinner prüfen",
+      warum:
+        "Erst Liste festschreiben, dann ziehen — in dieser Reihenfolge ist die " +
+        "Ziehung nachrechenbar und dir kann niemand Manipulation vorwerfen.",
+      erledigt: ziehung > 0,
+      ziel: erstes,
+      knopf: "Zum Gewinnspiel",
+    },
+    {
+      id: "online",
+      titel: "Online stellen (freiwillig)",
+      warum:
+        "Damit Teilnehmer die Bedingungen und später den Nachweis nachlesen " +
+        "können. Kostenlos über GitHub Pages — brauchst du aber nicht, um zu " +
+        "ziehen.",
+      erledigt: Boolean(settings?.githubRepo?.trim()),
+      ziel: "/admin/einstellungen",
+      knopf: "Einrichten",
+    },
+  ];
+}
+
+/// Hakt die Impressumsfrage ab, ohne eine Adresse zu verlangen.
+export async function impressumUebersprungen() {
+  const userId = await requireUser();
+  await db.settings.upsert({
+    where: { id: "settings" },
+    create: { id: "settings", impressumGeklaert: true },
+    update: { impressumGeklaert: true },
+  });
+  await audit({
+    action: "settings.impressum_geklaert",
+    entity: "Settings",
+    entityId: "settings",
+    actor: userId,
+  });
+  revalidatePath("/admin");
 }
 
 export async function completeGiveaway(giveawayId: string) {

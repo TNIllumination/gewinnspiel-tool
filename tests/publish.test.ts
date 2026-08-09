@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildIndexPage, withScheme, type IndexEntry } from "@/legal/publish";
+import {
+  buildIndexPage,
+  buildPublishPage,
+  withScheme,
+  type IndexEntry,
+} from "@/legal/publish";
 
 const WHO = {
   organizer: "Max Mustermann",
@@ -105,5 +110,55 @@ describe("withScheme", () => {
   it("macht aus leer nicht https://", () => {
     expect(withScheme("")).toBe("");
     expect(withScheme("   ")).toBe("");
+  });
+});
+
+describe("Zwei Schritte beim Veröffentlichen", () => {
+  const festgeschrieben = {
+    commitHash: "a".repeat(64),
+    entrantCount: 137,
+    totalLots: 140,
+    committedAt: new Date(Date.UTC(2026, 7, 13, 18, 0)),
+    seed: null,
+    drawnAt: null,
+    entrants: [{ id: "e1", username: "anna_berg", lots: 1, ref: "c1" }],
+    winners: [],
+    reserves: [],
+  };
+
+  const basis = { title: "Merch", terms: "Bedingungen", ...WHO };
+
+  // Eine Prüfsumme beweist nur etwas, wenn sie VOR der Ziehung öffentlich war.
+  it("zeigt die Prüfsumme schon vor der Ziehung", () => {
+    const html = buildPublishPage({ ...basis, draw: festgeschrieben });
+    expect(html).toContain("a".repeat(64));
+    expect(html).toContain("festgeschrieben");
+  });
+
+  it("verrät vor der Ziehung weder Namen noch Zufallszahl", () => {
+    const html = buildPublishPage({ ...basis, draw: festgeschrieben });
+    expect(html).not.toContain("anna_berg");
+    expect(html).not.toContain("Zufallszahl</dt>");
+  });
+
+  it("ergänzt nach der Ziehung Liste und Zufallszahl", () => {
+    const html = buildPublishPage({
+      ...basis,
+      draw: {
+        ...festgeschrieben,
+        seed: "b".repeat(64),
+        drawnAt: new Date(Date.UTC(2026, 7, 13, 19, 0)),
+        winners: [{ platz: 1, username: "@anna_berg", prize: "Shirt", text: "dabei" }],
+        reserves: ["@ben_wald"],
+      },
+    });
+    expect(html).toContain("anna_berg");
+    expect(html).toContain("b".repeat(64));
+  });
+
+  it("sagt ohne Festschreibung, dass noch nichts vorliegt", () => {
+    const html = buildPublishPage({ ...basis, draw: null });
+    expect(html).toContain("noch nicht stattgefunden");
+    expect(html).not.toContain("Prüfsumme (SHA-256)");
   });
 });
