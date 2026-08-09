@@ -156,6 +156,22 @@ describe("Nachweis-Text", () => {
     committedAt: new Date(Date.UTC(2026, 7, 13, 18, 5)),
   };
 
+  it("nennt den Zeitpunkt der Veröffentlichung, sobald er feststeht", () => {
+    const text = buildProofText({
+      ...basis,
+      commitPublishedAt: new Date(Date.UTC(2026, 7, 13, 18, 30)),
+    });
+    expect(text).toContain("Prüfsumme veröffentlicht:");
+    // Muss vor dem Ziehungszeitpunkt stehen — das ist die Aussage.
+    expect(text.indexOf("Prüfsumme veröffentlicht:")).toBeLessThan(
+      text.indexOf("Prüfsumme (SHA-256)"),
+    );
+  });
+
+  it("lässt die Zeile weg, solange nicht veröffentlicht wurde", () => {
+    expect(buildProofText(basis)).not.toContain("Prüfsumme veröffentlicht:");
+  });
+
   it("nennt vor der Ziehung nur die Prüfsumme", () => {
     const text = buildProofText(basis);
     expect(text).toContain("a".repeat(64));

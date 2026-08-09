@@ -103,6 +103,13 @@
   README mit Startschritten. Neue Reihe `scripts/e2e-einstieg.mjs` (braucht eine
   frische Datenbank).
 
+- **Fassung 0.5.1**: `Draw.commitPublishedAt` samt Migration — ohne diesen Zeitpunkt
+  liess sich nicht belegen, dass die Pruefsumme vor der Ziehung feststand. `publishPage`
+  setzt ihn beim ersten Veroeffentlichen einer festgeschriebenen, ungezogenen Liste;
+  `buildPublishPage` und `buildProofText` weisen ihn aus. TextePanel kennt drei Stufen
+  (`bedingungen` / `pruefsumme` / `nachweis`), die Ziehungskarte meldet den Zustand,
+  verweist auf `#veroeffentlichen` und fragt vor dem Ziehen zurueck.
+
 ## Als Nächstes
 
 1. PDF-Ziehungsprotokoll als Rechtsnachweis.

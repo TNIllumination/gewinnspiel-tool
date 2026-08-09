@@ -104,7 +104,7 @@ try {
   await page.waitForTimeout(3000);
   await page.reload();
   await page.waitForFunction(
-    () => document.body.innerText.toLowerCase().includes("commit-hash"),
+    () => document.body.innerText.toLowerCase().includes("prüfsumme"),
     null,
     { timeout: 30000 },
   );
@@ -119,8 +119,8 @@ try {
   const before = beforeText.toLowerCase();
   if (before.includes("nach der ziehung offengelegt")) {
     fail("Seed-Geheimhaltung", "Seed steht schon vor der Ziehung auf der Seite");
-  } else if (!before.includes("commit-hash")) {
-    fail("Öffentliche Seite", "Commit-Hash fehlt");
+  } else if (!before.includes("prüfsumme")) {
+    fail("Öffentliche Seite", "Prüfsumme fehlt");
   } else {
     ok("Öffentlich: Hash sichtbar, Seed noch geheim");
   }

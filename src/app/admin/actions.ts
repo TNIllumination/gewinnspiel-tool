@@ -1136,6 +1136,7 @@ export async function buildTexts(giveawayId: string): Promise<TextsResult | MitF
             entrantCount: draw.entrantCount,
             totalLots: draw.totalLots,
             committedAt: draw.committedAt,
+            commitPublishedAt: draw.commitPublishedAt,
             seed: draw.seedRevealedAt ? draw.seed : null,
             drawnAt: draw.drawnAt,
             listUrl,
@@ -1171,6 +1172,7 @@ export async function publishPage(giveawayId: string) {
         entrantCount: draw.entrantCount,
         totalLots: draw.totalLots,
         committedAt: draw.committedAt,
+        commitPublishedAt: draw.commitPublishedAt,
         seed: draw.seedRevealedAt ? draw.seed : null,
         drawnAt: draw.drawnAt,
         entrants: draw.entrantsSnapshot as unknown as Entrant[],
@@ -1218,6 +1220,16 @@ export async function publishPage(giveawayId: string) {
       await publishedFiles(),
       `Gewinnspiel veröffentlicht: ${giveaway.title}`,
     );
+
+    // Der Zeitpunkt, ab dem die Prüfsumme öffentlich ist. Nur beim ersten Mal
+    // und nur vor der Ziehung — danach wäre er wertlos, weil er dann nichts
+    // mehr über die Reihenfolge aussagt.
+    if (draw && !draw.drawnAt && !draw.commitPublishedAt) {
+      await db.draw.update({
+        where: { id: draw.id },
+        data: { commitPublishedAt: new Date() },
+      });
+    }
 
     await audit({
       action: "giveaway.published",

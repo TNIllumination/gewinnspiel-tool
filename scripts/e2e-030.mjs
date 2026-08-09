@@ -234,8 +234,10 @@ try {
   page.on("dialog", (d) => d.accept());
   await page.getByRole("button", { name: /Teilnahmen festschreiben/ }).click();
   await settle();
-  if (!(await page.innerText("body")).toLowerCase().includes("commit-hash")) {
-    no("Festschreiben", "kein Hash sichtbar");
+  // Kleinschreiben: Die Überschrift steht per CSS in Großbuchstaben, und
+  // innerText liefert sie genau so.
+  if (!(await page.innerText("body")).toLowerCase().includes("prüfsumme")) {
+    no("Festschreiben", "keine Prüfsumme sichtbar");
   } else {
     ok("Liste festgeschrieben");
   }
@@ -250,6 +252,42 @@ try {
 
   await page.getByRole("button", { name: /Teilnahmen festschreiben/ }).click();
   await settle();
+
+  // ── Prüfsumme VOR der Ziehung veröffentlichen ─────────────────────────────
+  // Der Kern des Verfahrens: Danach erst darf gezogen werden.
+  const vorZiehung = (await page.innerText("body")).toLowerCase();
+  if (!vorZiehung.includes("noch nicht veröffentlicht")) {
+    no("Prüfsumme", "Zustand wird nicht ausgewiesen");
+  } else if (!vorZiehung.includes("erst die prüfsumme veröffentlichen")) {
+    no("Prüfsumme", "keine Warnung vor dem Ziehen");
+  } else {
+    ok("Prüfsumme als unveröffentlicht ausgewiesen, mit Warnung");
+  }
+
+  await page
+    .getByRole("button", { name: "Seite mit Bedingungen und Prüfsumme erzeugen" })
+    .click();
+  await page.waitForFunction(
+    () => document.body.innerText.includes("Datei erzeugt"),
+    null,
+    { timeout: 30000 },
+  );
+
+  const vorher = readFileSync(`veroeffentlichung/${slug}.html`, "utf8");
+  if (!/Prüfsumme \(SHA-256\)/.test(vorher)) {
+    no("Prüfsumme", "steht nicht auf der Seite");
+  } else if (/anna_berg|ben_wald|carla_stein/.test(vorher)) {
+    no("Prüfsumme", "Namen sind vor der Ziehung öffentlich!");
+  } else {
+    ok("Prüfsumme veröffentlicht, ohne einen einzigen Namen");
+  }
+
+  await settle();
+  if (!(await page.innerText("body")).toLowerCase().includes("prüfsumme — veröffentlicht")) {
+    no("Zeitpunkt", "Veröffentlichung wird nicht festgehalten");
+  } else {
+    ok("Zeitpunkt der Veröffentlichung festgehalten");
+  }
 
   // ── Ziehen ────────────────────────────────────────────────────────────────
   await page.getByRole("button", { name: /Jetzt ziehen/ }).click();

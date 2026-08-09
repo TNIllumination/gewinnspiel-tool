@@ -432,18 +432,38 @@ dich also daran, oder ändere die Zahl.
 Wie bei den Teilnahmebedingungen gilt: Das ist keine Rechtsberatung. Einmal von einem
 Anwalt gegenlesen lassen, dann steht es.
 
-### Veröffentlichen in zwei Schritten
+### Veröffentlichen in drei Stufen
 
-Das passiert nicht auf einmal, und das ist Absicht:
+Das passiert nicht auf einmal, und das ist Absicht. Der Knopf unter
+**Teilnahmebedingungen und Nachweis** heißt jeweils nach dem, was er gerade tut:
 
-1. **Vor der Ziehung**: *Teilnahmebedingungen veröffentlichen*. Online gehen nur die
-   Bedingungen — und, sobald du die Liste festgeschrieben hast, die Prüfsumme.
-   **Keine Namen.** Die Prüfsumme muss vorher öffentlich sein, sonst beweist sie
-   nichts: Sie ändert sich, sobald jemand nachträglich an der Liste dreht.
-2. **Nach der Ziehung**: *Nachweis veröffentlichen*. Jetzt kommen Teilnehmerliste,
-   Zufallszahl und Gewinner dazu. Damit kann jeder nachrechnen.
+| Wann | Knopf | Was online geht |
+|---|---|---|
+| am Anfang | *Teilnahmebedingungen veröffentlichen* | nur die Bedingungen |
+| nach dem Festschreiben | *Bedingungen und Prüfsumme veröffentlichen* | zusätzlich die Prüfsumme — **keine Namen** |
+| nach der Ziehung | *Nachweis veröffentlichen* | Teilnehmerliste, Zufallszahl, Gewinner |
 
-Der Knopf heißt jeweils nach dem, was er tut, und fragt vorher nach.
+**Die mittlere Stufe ist die wichtigste.** Die Prüfsumme muss veröffentlicht sein,
+**bevor** du ziehst. Sonst könnte dir jemand vorwerfen, du hättest sie nachträglich
+passend zum Ergebnis erzeugt — und genau darauf beruht der ganze Nachweis.
+
+Deshalb steht in der Ziehungskarte, ob die Prüfsumme schon veröffentlicht ist. Ist sie
+es nicht, warnt das Tool und fragt vor dem Ziehen nach. **Verhindert wird es nicht** —
+ohne Internet unterwegs musst du ziehen können. Aber versehentlich passiert es nicht
+mehr.
+
+Der Zeitpunkt der Veröffentlichung wird festgehalten und steht anschließend auf der
+Nachweis-Seite: *festgeschrieben → Prüfsumme veröffentlicht → gezogen*. Diese
+Reihenfolge, schwarz auf weiß, ist der eigentliche Beweis.
+
+**Der Ablauf am Stück:**
+
+1. Bedingungen setzen, Teilnahmen einlesen, Gewinne anlegen
+2. *Teilnahmen festschreiben*
+3. Oben: *Bedingungen und Prüfsumme veröffentlichen*
+4. *Jetzt ziehen*
+5. Gewinner prüfen und bestätigen
+6. Oben: *Nachweis veröffentlichen*
 
 ### Impressum
 

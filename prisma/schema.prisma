@@ -274,6 +274,10 @@ model Draw {
   winnerSlots Int @default(1)
 
   committedAt DateTime  @default(now())
+  /// Wann die Pruefsumme oeffentlich wurde. Der Kern des Verfahrens: Sie
+  /// beweist nur etwas, wenn sie VOR der Ziehung feststand — und das laesst
+  /// sich nur belegen, wenn der Zeitpunkt festgehalten wird.
+  commitPublishedAt DateTime?
   drawnAt     DateTime?
 
   results DrawResult[]

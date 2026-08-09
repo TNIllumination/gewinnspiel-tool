@@ -133,7 +133,7 @@ export default async function PublicGiveawayPage({
           <div className="space-y-3 text-sm">
             <div>
               <p className="text-xs uppercase tracking-wide text-slate-500">
-                Commit-Hash — veröffentlicht vor der Ziehung
+                Prüfsumme — veröffentlicht vor der Ziehung
               </p>
               <p className="break-all font-mono text-xs">{draw.commitHash}</p>
             </div>

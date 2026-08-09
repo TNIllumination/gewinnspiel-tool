@@ -494,23 +494,29 @@ export default async function GiveawayPage({
       </Card>
 
       {/* ── Texte und Veröffentlichung ───────────────────────────────── */}
-      <Card>
+      <Card id="veroeffentlichen">
         <CardTitle hint="Für den Beitrag und für die öffentliche Seite auf GitHub.">
           Teilnahmebedingungen und Nachweis
         </CardTitle>
         <p className="mb-4 text-sm text-slate-600">
-          Veröffentlicht wird in <strong>zwei Schritten</strong>. Vor der Ziehung gehen
-          nur die Teilnahmebedingungen online — und, sobald du die Liste
-          festgeschrieben hast, die Prüfsumme. <strong>Keine Namen.</strong> Erst nach
-          der Ziehung kommen Teilnehmerliste, Zufallszahl und Gewinner dazu; das ist
-          der Nachweis, mit dem jeder nachrechnen kann.
+          Veröffentlicht wird in <strong>drei Stufen</strong>, und der Knopf heißt
+          jeweils danach: erst die <strong>Teilnahmebedingungen</strong>, nach dem
+          Festschreiben zusätzlich die <strong>Prüfsumme</strong>, nach der Ziehung der
+          <strong> Nachweis</strong> mit Teilnehmerliste, Zufallszahl und Gewinnern.
+          Bis zur Ziehung geht <strong>kein einziger Name</strong> online.
         </p>
         <TextePanel
           texte={buildTexts.bind(null, id)}
           veroeffentlichen={publishPage.bind(null, id)}
           slug={giveaway.slug}
           hochladen={Boolean(settings?.githubToken)}
-          nachweis={Boolean(currentDraw?.seedRevealedAt)}
+          stufe={
+            currentDraw?.seedRevealedAt
+              ? "nachweis"
+              : currentDraw
+                ? "pruefsumme"
+                : "bedingungen"
+          }
         />
       </Card>
 
@@ -541,7 +547,9 @@ export default async function GiveawayPage({
           <div className="space-y-4">
             <div className="rounded-lg bg-slate-50 p-4">
               <p className="text-xs uppercase tracking-wide text-slate-500">
-                Commit-Hash (jetzt veröffentlichen)
+                {currentDraw.commitPublishedAt
+                  ? `Prüfsumme — veröffentlicht ${formatDateTime(currentDraw.commitPublishedAt)}`
+                  : "Prüfsumme — noch nicht veröffentlicht"}
               </p>
               <p className="mt-1 break-all font-mono text-xs text-slate-800">
                 {currentDraw.commitHash}
@@ -554,10 +562,36 @@ export default async function GiveawayPage({
               </p>
             </div>
 
+            {/* Der Kern des Verfahrens: Die Prüfsumme beweist nur etwas, wenn
+                sie VOR der Ziehung öffentlich war. Sonst hätte sie
+                nachträglich passend erzeugt werden können. */}
+            {!currentDraw.commitPublishedAt ? (
+              <Notice title="Erst die Prüfsumme veröffentlichen" tone="warn">
+                <p>
+                  Sie muss <strong>vor</strong> der Ziehung öffentlich sein — sonst
+                  ließe sich hinterher behaupten, sie sei passend zum Ergebnis
+                  erzeugt worden. Genau darauf beruht der ganze Nachweis.
+                </p>
+                <p className="mt-2">
+                  Geh dazu oben auf{" "}
+                  <a href="#veroeffentlichen" className="underline">
+                    Teilnahmebedingungen und Nachweis
+                  </a>{" "}
+                  und drück auf <strong>Bedingungen und Prüfsumme veröffentlichen</strong>.
+                  Es gehen dabei noch keine Namen online.
+                </p>
+              </Notice>
+            ) : null}
+
             <ActionForm
               action={performDraw.bind(null, id)}
               submitLabel={`Jetzt ziehen (${currentDraw.winnerSlots} Gewinner + ${giveaway.substituteCount} Nachrücker)`}
               variant="success"
+              confirm={
+                currentDraw.commitPublishedAt
+                  ? undefined
+                  : "Die Prüfsumme ist noch nicht veröffentlicht. Dann lässt sich hinterher nicht belegen, dass sie vor der Ziehung feststand — der Nachweis ist damit wertlos. Trotzdem ziehen?"
+              }
             />
 
             <div className="border-t border-slate-200 pt-4">

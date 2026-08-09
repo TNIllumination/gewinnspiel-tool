@@ -4,12 +4,16 @@ import type { ComponentProps, ReactNode } from "react";
 export function Card({
   children,
   className = "",
+  id,
 }: {
   children: ReactNode;
   className?: string;
+  /// Sprungmarke, damit ein Hinweis anderswo hierher verweisen kann.
+  id?: string;
 }) {
   return (
     <section
+      id={id}
       className={`rounded-xl border border-slate-200 bg-white p-6 shadow-sm ${className}`}
     >
       {children}

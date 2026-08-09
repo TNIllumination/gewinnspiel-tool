@@ -22,6 +22,9 @@ export interface PublishInput {
     entrantCount: number;
     totalLots: number;
     committedAt: Date;
+    /// Wann die Pruefsumme oeffentlich wurde — der Beleg dafuer, dass sie
+    /// vor der Ziehung feststand.
+    commitPublishedAt?: Date | null;
     seed?: string | null;
     drawnAt?: Date | null;
     entrants: Entrant[];
@@ -76,7 +79,11 @@ ${
 <dl>
   <dt>Teilnehmer</dt><dd>${d.entrantCount} · ${d.totalLots} Lose</dd>
   <dt>Liste festgeschrieben</dt><dd>${formatDe(d.committedAt)}</dd>
-  <dt>Gezogen</dt><dd>${formatDe(d.drawnAt)}</dd>
+${
+  d.commitPublishedAt
+    ? `  <dt>Prüfsumme veröffentlicht</dt><dd>${formatDe(d.commitPublishedAt)}</dd>\n`
+    : ""
+}  <dt>Gezogen</dt><dd>${formatDe(d.drawnAt)}</dd>
   <dt>Prüfsumme (SHA-256)</dt><dd><code>${escapeHtml(d.commitHash)}</code></dd>
   <dt>Zufallszahl</dt><dd><code>${escapeHtml(d.seed ?? "")}</code></dd>
 </dl>
@@ -101,7 +108,11 @@ ${
 <dl>
   <dt>Teilnehmer</dt><dd>${d.entrantCount} · ${d.totalLots} Lose</dd>
   <dt>Liste festgeschrieben</dt><dd>${formatDe(d.committedAt)}</dd>
-  <dt>Prüfsumme (SHA-256)</dt><dd><code>${escapeHtml(d.commitHash)}</code></dd>
+${
+  d.commitPublishedAt
+    ? `  <dt>Prüfsumme veröffentlicht</dt><dd>${formatDe(d.commitPublishedAt)}</dd>\n`
+    : ""
+}  <dt>Prüfsumme (SHA-256)</dt><dd><code>${escapeHtml(d.commitHash)}</code></dd>
 </dl>
 <p>
   Nach der Ziehung kommen hier die Zufallszahl und die vollständige

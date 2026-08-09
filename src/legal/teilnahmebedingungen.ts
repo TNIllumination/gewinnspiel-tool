@@ -263,6 +263,8 @@ export function buildProofText(params: {
   entrantCount: number;
   totalLots: number;
   committedAt: Date;
+  /// Wann die Pruefsumme oeffentlich wurde.
+  commitPublishedAt?: Date | null;
   seed?: string | null;
   drawnAt?: Date | null;
   listUrl?: string | null;
@@ -271,6 +273,9 @@ export function buildProofText(params: {
   lines.push(`Nachweis zur fairen Ziehung — ${params.title}`, "");
   lines.push(`Teilnehmer: ${params.entrantCount} · Lose: ${params.totalLots}`);
   lines.push(`Liste festgeschrieben: ${formatDe(params.committedAt)}`);
+  if (params.commitPublishedAt) {
+    lines.push(`Prüfsumme veröffentlicht: ${formatDe(params.commitPublishedAt)}`);
+  }
   lines.push(`Prüfsumme (SHA-256): ${params.commitHash}`);
 
   if (params.seed && params.drawnAt) {

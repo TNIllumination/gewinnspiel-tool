@@ -1,5 +1,13 @@
 # Was sich geändert hat
 
+## 0.5.1
+
+- **Der fehlende Schritt hat jetzt einen Namen.** Nach dem Festschreiben heißt der Knopf *Bedingungen und Prüfsumme veröffentlichen* — vorher stand nur „Teilnahmebedingungen veröffentlichen" da, obwohl die Prüfsumme mitging
+- Die Ziehungskarte zeigt, **ob** die Prüfsumme schon veröffentlicht ist, und führt zum richtigen Knopf
+- **Warnung vor dem Ziehen**, solange sie es nicht ist: Ohne vorher veröffentlichte Prüfsumme ist der Nachweis wertlos. Verhindert wird das Ziehen nicht — ohne Internet muss es gehen
+- Der **Zeitpunkt der Veröffentlichung** wird festgehalten und steht auf der Nachweis-Seite: festgeschrieben → veröffentlicht → gezogen. Erst diese Reihenfolge macht die Ziehung überprüfbar
+- Einheitliche Bezeichnung: überall „Prüfsumme" statt teils „Commit-Hash"
+
 ## 0.5.0
 
 - **Der Testmodus erfüllt jetzt deine eigenen Regeln.** Bisher enthielt jeder erfundene Kommentar fest das Wort „dabei" — verlangtest du etwas anderes, fiel jede der 250 Teilnahmen durch

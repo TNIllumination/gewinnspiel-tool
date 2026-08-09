@@ -162,3 +162,39 @@ describe("Zwei Schritte beim Veröffentlichen", () => {
     expect(html).not.toContain("Prüfsumme (SHA-256)");
   });
 });
+
+describe("Reihenfolge belegen", () => {
+  const basis = { title: "Merch", terms: "Bedingungen", ...WHO };
+  const kern = {
+    commitHash: "a".repeat(64),
+    entrantCount: 137,
+    totalLots: 140,
+    committedAt: new Date(Date.UTC(2026, 7, 13, 18, 0)),
+    entrants: [{ id: "e1", username: "anna_berg", lots: 1, ref: "c1" }],
+    winners: [],
+    reserves: [],
+  };
+
+  // Der ganze Nachweis beruht darauf, dass die Prüfsumme VOR der Ziehung
+  // öffentlich war. Ohne diesen Zeitpunkt ist das eine bloße Behauptung.
+  it("nennt, wann die Prüfsumme veröffentlicht wurde — vor dem Ziehungszeitpunkt", () => {
+    const html = buildPublishPage({
+      ...basis,
+      draw: {
+        ...kern,
+        commitPublishedAt: new Date(Date.UTC(2026, 7, 13, 18, 30)),
+        seed: "b".repeat(64),
+        drawnAt: new Date(Date.UTC(2026, 7, 13, 19, 0)),
+      },
+    });
+    expect(html).toContain("Prüfsumme veröffentlicht");
+    expect(html.indexOf("Prüfsumme veröffentlicht")).toBeLessThan(
+      html.indexOf("<dt>Gezogen</dt>"),
+    );
+  });
+
+  it("lässt die Zeile weg, solange nicht veröffentlicht wurde", () => {
+    const html = buildPublishPage({ ...basis, draw: { ...kern, seed: null, drawnAt: null } });
+    expect(html).not.toContain("Prüfsumme veröffentlicht");
+  });
+});
