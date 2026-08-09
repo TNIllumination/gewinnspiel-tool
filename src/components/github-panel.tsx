@@ -13,8 +13,8 @@ export function GitHubPanel({
   repo,
   hatSchluessel,
 }: {
-  pruefen: () => Promise<{ meldung: string }>;
-  entfernen: () => Promise<void>;
+  pruefen: () => Promise<{ meldung?: string; fehler?: string }>;
+  entfernen: () => Promise<{ fehler?: string } | void>;
   repo: string;
   hatSchluessel: boolean;
 }) {
@@ -90,7 +90,13 @@ export function GitHubPanel({
           type="button"
           variant="secondary"
           disabled={pending}
-          onClick={() => run(async () => setMeldung((await pruefen()).meldung))}
+          onClick={() =>
+            run(async () => {
+              const ergebnis = await pruefen();
+              if (ergebnis.fehler) setFehler(ergebnis.fehler);
+              else setMeldung(ergebnis.meldung ?? "");
+            })
+          }
         >
           Verbindung prüfen
         </Button>
@@ -102,8 +108,9 @@ export function GitHubPanel({
             onClick={() => {
               if (!window.confirm("Zugangsschlüssel entfernen?")) return;
               run(async () => {
-                await entfernen();
-                setMeldung("Zugangsschlüssel entfernt.");
+                const ergebnis = await entfernen();
+                if (ergebnis?.fehler) setFehler(ergebnis.fehler);
+                else setMeldung("Zugangsschlüssel entfernt.");
               });
             }}
           >

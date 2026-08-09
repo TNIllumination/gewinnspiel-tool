@@ -82,6 +82,13 @@
   in `src/legal/publish.ts`. `Giveaway.customTerms` als Freifeld für eigene
   Bedingungen.
 
+- **Fassung 0.4.1**: `src/lib/ergebnis.ts` (`Bedienfehler`, `alsErgebnis`,
+  `istSteuerfluss`) — Next.js zensiert im Produktionsbau die Texte geworfener
+  Ausnahmen aus Server-Aktionen; Bedienfehler kommen deshalb als Rückgabewert.
+  Alle 27 Aktionen in `actions.ts` sind umschlossen, `error.tsx` und
+  `global-error.tsx` fangen den Rest ab. `scripts/e2e-030.mjs` prüft jetzt eine
+  Fehlermeldung gegen den Produktionsbau — genau das fehlte.
+
 ## Als Nächstes
 
 1. PDF-Ziehungsprotokoll als Rechtsnachweis.

@@ -16,8 +16,8 @@ export function ManualImport({
   confirm,
   platforms,
 }: {
-  preview: (raw: string) => Promise<ImportPreviewResult>;
-  confirm: (platform: string, raw: string) => Promise<StoreResult>;
+  preview: (raw: string) => Promise<ImportPreviewResult | { fehler?: string }>;
+  confirm: (platform: string, raw: string) => Promise<StoreResult | { fehler?: string }>;
   platforms: { id: string; label: string }[];
 }) {
   const [raw, setRaw] = useState("");
@@ -35,7 +35,9 @@ export function ManualImport({
     setSaved(null);
     startTransition(async () => {
       try {
-        setResult(await preview(raw));
+        const ergebnis = await preview(raw);
+        if (!("format" in ergebnis)) setError(ergebnis.fehler ?? "");
+        else setResult(ergebnis);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Das Prüfen ist fehlgeschlagen.");
       }
@@ -47,6 +49,10 @@ export function ManualImport({
     startTransition(async () => {
       try {
         const outcome = await confirm(platform, raw);
+        if (!("added" in outcome)) {
+          setError(outcome.fehler ?? "");
+          return;
+        }
         setSaved(outcome);
         setRaw("");
         setResult(null);

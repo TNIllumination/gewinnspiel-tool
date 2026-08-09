@@ -73,6 +73,29 @@ try {
     ok("Veranstalterangaben gespeichert", "https:// ergänzt");
   }
 
+  // ── Fehlermeldungen müssen lesbar sein ────────────────────────────────────
+  // Im Produktionsbau zensiert Next.js den Text geworfener Ausnahmen. Kommt
+  // hier eine Nummer statt eines Satzes, ist das kaputt — genau daran ist
+  // Fassung 0.4.0 gescheitert.
+  const lesbar = (text, wo) => {
+    if (/error #\d+|omitted in production|Server Components render/i.test(text)) {
+      no(wo, `zensierte Meldung statt Klartext: ${text.slice(0, 90)}`);
+      return false;
+    }
+    return true;
+  };
+
+  await page.getByRole("button", { name: "Verbindung prüfen" }).click();
+  await page.waitForTimeout(2500);
+  const pruefText = await page.locator('[role="alert"]').first().innerText();
+  if (!lesbar(pruefText, "Verbindung prüfen")) {
+    // Meldung schon ausgegeben
+  } else if (!/Zugangsschlüssel|Repository/.test(pruefText)) {
+    no("Verbindung prüfen", `unerwarteter Text: ${pruefText.slice(0, 90)}`);
+  } else {
+    ok("Fehlermeldung im Klartext", pruefText.slice(0, 60));
+  }
+
   // ── Übersichtsseite vor dem ersten Gewinnspiel ────────────────────────────
   // Genau der Weg, der GitHub Pages überhaupt erst einschaltbar macht.
   await page.getByRole("button", { name: "Übersichtsseite erzeugen" }).click();

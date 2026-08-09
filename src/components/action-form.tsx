@@ -2,21 +2,23 @@
 
 import { useActionState } from "react";
 import { Button } from "./ui";
+import { istSteuerfluss } from "@/lib/ergebnis";
 import type { ReactNode } from "react";
 
 type State = { error?: string };
 
-/// Next.js signalisiert Weiterleitungen und "not found" ueber geworfene
-/// Fehler mit besonderem digest. Die duerfen wir nicht abfangen, sonst
-/// bleibt der Nutzer auf der Seite stehen.
-function isControlFlow(error: unknown): boolean {
-  const digest = (error as { digest?: unknown })?.digest;
-  return typeof digest === "string" && /^(NEXT_REDIRECT|NEXT_NOT_FOUND)/.test(digest);
-}
-
+/// Was von einer geworfenen Ausnahme uebrig bleibt, ist im Produktionsbau
+/// zensiert ("An error occurred in the Server Components render…"). Solche
+/// Texte dem Betreiber zu zeigen, hilft niemandem.
 function messageOf(error: unknown): string {
-  if (error instanceof Error && error.message) return error.message;
-  return "Das hat leider nicht geklappt. Bitte noch einmal versuchen.";
+  const text = error instanceof Error ? error.message : "";
+  if (!text || /omitted in production|Server Components render|error #\d+/i.test(text)) {
+    return (
+      "Da ist etwas schiefgegangen. Die genaue Meldung steht im schwarzen " +
+      "Fenster, in dem das Tool läuft."
+    );
+  }
+  return text;
 }
 
 /// Formular, das Fehler aus einer Server-Action lesbar anzeigt, statt in
@@ -40,10 +42,12 @@ export function ActionForm({
   const [state, formAction, pending] = useActionState<State, FormData>(
     async (_prev, formData) => {
       try {
-        await action(formData);
-        return {};
+        // Bedienfehler kommen als Rueckgabewert — nur der uebersteht die
+        // Grenze zum Browser mit unveraendertem Text.
+        const ergebnis = (await action(formData)) as { fehler?: string } | undefined;
+        return ergebnis?.fehler ? { error: ergebnis.fehler } : {};
       } catch (error) {
-        if (isControlFlow(error)) throw error;
+        if (istSteuerfluss(error)) throw error;
         return { error: messageOf(error) };
       }
     },

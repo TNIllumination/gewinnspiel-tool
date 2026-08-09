@@ -11,6 +11,7 @@ import type { TextsResult } from "@/app/admin/actions";
 /// gäbe es sonst bei jedem Aufruf einen Fehler, statt eines Hinweises an
 /// der Stelle, wo er hingehört.
 interface DateiErgebnis {
+  fehler?: string;
   fileName: string;
   url: string | null;
   hochgeladen?: boolean;
@@ -25,8 +26,8 @@ export function TextePanel({
   slug,
   hochladen,
 }: {
-  texte: () => Promise<TextsResult>;
-  veroeffentlichen: () => Promise<DateiErgebnis>;
+  texte: () => Promise<TextsResult | { fehler?: string }>;
+  veroeffentlichen: () => Promise<DateiErgebnis | { fehler?: string }>;
   slug: string;
   /// Ist ein Zugangsschlüssel hinterlegt, geht die Datei gleich online.
   hochladen: boolean;
@@ -56,7 +57,13 @@ export function TextePanel({
           type="button"
           variant="secondary"
           disabled={pending}
-          onClick={() => run(async () => setResult(await texte()))}
+          onClick={() =>
+            run(async () => {
+              const ergebnis = await texte();
+              if ("fehler" in ergebnis && ergebnis.fehler) setError(ergebnis.fehler);
+              else setResult(ergebnis as TextsResult);
+            })
+          }
         >
           Texte erzeugen
         </Button>
@@ -75,7 +82,11 @@ export function TextePanel({
             ) {
               return;
             }
-            run(async () => setDatei(await veroeffentlichen()));
+            run(async () => {
+              const ergebnis = await veroeffentlichen();
+              if (!("fileName" in ergebnis)) setError(ergebnis.fehler ?? "");
+              else setDatei(ergebnis);
+            });
           }}
         >
           {hochladen ? "Veröffentlichen und hochladen" : "Seite für GitHub erzeugen"}

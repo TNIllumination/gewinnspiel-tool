@@ -1,5 +1,12 @@
 # Was sich geändert hat
 
+## 0.4.1
+
+- **Fehlermeldungen sagen wieder, was los ist.** Statt „minified React error #441" steht da der Satz, der gemeint war — etwa „Es ist noch kein Zugangsschlüssel hinterlegt"
+- Betraf alle Meldungen des Tools: Next.js entfernt im fertigen Bau die Texte geworfener Fehler. Sie kommen jetzt als Ergebnis statt als Ausnahme
+- „Verbindung prüfen" nennt jeden Ausgang beim Namen, auch den Fall einer ausgetauschten .env
+- Eigene Fehlerseite statt einer Nummer, mit Kennung zum Wiederfinden im schwarzen Fenster
+
 ## 0.4.0
 
 - **Hochladen auf Knopfdruck**: Ein Zugangsschlüssel unter Einstellungen genügt — das Tool lädt die Seiten selbst zu GitHub und schaltet GitHub Pages beim ersten Mal ein

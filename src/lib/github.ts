@@ -12,7 +12,10 @@ const API = "https://api.github.com";
 const TIMEOUT = 30000;
 
 /// Ein Fehler, dessen Text so, wie er ist, angezeigt werden darf.
-export class GitHubError extends Error {}
+export class GitHubError extends Error {
+  // alsErgebnis erkennt ihn am Namen, ohne dieses Modul kennen zu muessen.
+  name = "GitHubError";
+}
 
 export interface UploadFile {
   /// Pfad im Repository, z. B. "index.html".

@@ -7,7 +7,11 @@ import { Button } from "./ui";
 ///
 /// Die Verabschiedung kommt bewusst aus dem eigenen Zustand — der Server ist
 /// dann schon weg, eine weitere Anfrage würde ins Leere laufen.
-export function BeendenButton({ beenden }: { beenden: () => Promise<void> }) {
+export function BeendenButton({
+  beenden,
+}: {
+  beenden: () => Promise<{ fehler?: string } | void>;
+}) {
   const [beendet, setBeendet] = useState(false);
   const [pending, startTransition] = useTransition();
 
