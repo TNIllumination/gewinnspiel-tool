@@ -43,19 +43,25 @@ Die Ziehung folgt einem **Commit-Reveal-Verfahren**:
 Wird die Liste nachträglich verändert, passt der Hash nicht mehr. Das ist der
 Unterschied zwischen „vertrau mir" und „rechne selbst nach".
 
-## Schnellstart (Entwicklung)
+## Starten
 
-```bash
-cp .env.example .env
-# Zwei Geheimnisse erzeugen und in .env eintragen:
-openssl rand -base64 32   # SESSION_SECRET
-openssl rand -base64 32   # ENCRYPTION_KEY
+**Auf dem eigenen Rechner — ohne Server, ohne Docker, ohne laufende Kosten.**
 
-docker compose up -d db   # Postgres starten
-npm install
-npx prisma migrate dev    # Tabellen anlegen
-npm run dev               # http://localhost:3000
-```
+Node.js installieren, Projekt herunterladen, dann:
+
+| System | Start |
+|---|---|
+| Windows | `start.bat` doppelklicken |
+| Mac / Linux | `./start.sh` |
+
+Das Skript erledigt alles selbst: Bausteine installieren, Zugangsschlüssel erzeugen,
+Datenbank anlegen, bauen, starten und den Browser öffnen. Beim ersten Mal dauert es
+ein paar Minuten, danach Sekunden.
+
+Ausführliche Anleitung ohne Konsolenwissen: **[`docs/SURFACE.md`](docs/SURFACE.md)**
+
+Die Datenbank ist **eine einzelne Datei** (`gewinnspiel.db`) im Projektordner.
+Sichern heißt: Datei kopieren. Die Daten verlassen dein Gerät nie.
 
 Ohne Zugang zu einer Plattform lässt sich alles im **Testmodus** ausprobieren —
 er erzeugt erfundene Teilnehmer und durchläuft den kompletten Ablauf.
@@ -64,6 +70,7 @@ er erzeugt erfundene Teilnehmer und durchläuft den kompletten Ablauf.
 
 | Befehl | Zweck |
 |---|---|
+| `node scripts/start.mjs` | Alles-in-einem-Start (das tun auch `start.bat`/`start.sh`) |
 | `npm run dev` | Entwicklungsserver |
 | `npm test` | Testsuite |
 | `npm run typecheck` | Typprüfung |

@@ -130,8 +130,31 @@ export async function deleteGiveaway(giveawayId: string) {
 async function storeComments(giveawayId: string, comments: CommentInput[]) {
   if (comments.length === 0) return 0;
 
+  // Doppelimport derselben Kommentare soll harmlos sein. SQLite kennt kein
+  // skipDuplicates, deshalb wird vorher abgeglichen — gegen die Datenbank
+  // und innerhalb des Stapels selbst.
+  const stored = await db.entry.findMany({
+    where: { giveawayId, externalId: { not: null } },
+    select: { externalId: true },
+  });
+
+  const seen = new Set(stored.map((e) => e.externalId));
+  const fresh: CommentInput[] = [];
+
+  for (const c of comments) {
+    // Kommentare ohne Plattform-ID (Einfuegen von Hand) lassen sich nicht
+    // zuverlaessig abgleichen — sie kommen durch.
+    if (c.externalId) {
+      if (seen.has(c.externalId)) continue;
+      seen.add(c.externalId);
+    }
+    fresh.push(c);
+  }
+
+  if (fresh.length === 0) return 0;
+
   const result = await db.entry.createMany({
-    data: comments.map((c) => ({
+    data: fresh.map((c) => ({
       giveawayId,
       externalId: c.externalId ?? null,
       username: c.username.replace(/^@/, ""),
@@ -140,8 +163,6 @@ async function storeComments(giveawayId: string, comments: CommentInput[]) {
       commentedAt: c.commentedAt,
       likeCount: c.likeCount ?? 0,
     })),
-    // Doppelimport derselben Kommentare ist harmlos.
-    skipDuplicates: true,
   });
 
   return result.count;
@@ -629,9 +650,19 @@ export async function eraseParticipant(username: string) {
   const clean = username.trim().replace(/^@/, "");
   if (!clean) fail("Bitte einen Benutzernamen angeben.");
 
-  const { count } = await db.entry.deleteMany({
-    where: { username: { equals: clean, mode: "insensitive" } },
+  // SQLite kennt kein "mode: insensitive". Deshalb erst grob per LIKE
+  // vorfiltern (auf SQLite ohnehin ohne Ruecksicht auf Gross-/Kleinschreibung)
+  // und dann exakt vergleichen — sonst wuerde @Anna neben @anna stehenbleiben.
+  const candidates = await db.entry.findMany({
+    where: { username: { contains: clean } },
+    select: { id: true, username: true },
   });
+
+  const ids = candidates
+    .filter((e) => e.username.toLowerCase() === clean.toLowerCase())
+    .map((e) => e.id);
+
+  const { count } = await db.entry.deleteMany({ where: { id: { in: ids } } });
 
   await db.dataRequest.create({
     data: {

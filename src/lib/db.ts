@@ -1,4 +1,4 @@
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient } from "@/generated/prisma/client";
 
 // Next.js baut im Dev-Modus haeufig neu auf. Ohne Cache im globalThis
@@ -6,11 +6,10 @@ import { PrismaClient } from "@/generated/prisma/client";
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function createClient() {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
-    throw new Error("DATABASE_URL ist nicht gesetzt. Siehe .env.example.");
-  }
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+  // Standard: eine Datei im Projektordner. So laeuft die App ohne
+  // Einrichtung, und die Daten bleiben auf dem eigenen Rechner.
+  const url = process.env.DATABASE_URL ?? "file:./gewinnspiel.db";
+  return new PrismaClient({ adapter: new PrismaBetterSqlite3({ url }) });
 }
 
 export const db = globalForPrisma.prisma ?? createClient();

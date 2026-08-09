@@ -8,9 +8,11 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
+// SQLite: Die Datenbank ist eine einzelne Datei neben der App.
+// Kein Server, kein Docker — sichern heisst: Datei kopieren.
 // Die Verbindungs-URL steht in prisma.config.ts (Prisma 7).
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 enum Platform {
@@ -84,7 +86,8 @@ model Account {
   accessToken  String? // verschluesselt
   refreshToken String? // verschluesselt
   expiresAt    DateTime?
-  scopes       String[]   @default([])
+  /// Kommagetrennt. SQLite kennt keine Listen-Spalten — deshalb als Text.
+  scopes       String     @default("")
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   giveaways    Giveaway[]

@@ -47,12 +47,38 @@
 - **Zweiter E2E-Test** (`scripts/e2e-tiktok-import.mjs`): TikTok-Paste importieren,
   Vorschau prüfen, Regeln ohne Markier-Pflicht setzen — 10 von 10 grün.
 
+- **Läuft lokal ohne Server**: Umstellung von PostgreSQL auf **SQLite** — Docker und
+  Datenbankserver entfallen, die Datenbank ist die Datei `gewinnspiel.db`.
+  `start.bat` / `start.sh` erledigen Installation, Schlüsselerzeugung, Migration,
+  Build und Serverstart per Doppelklick (`scripts/start.mjs`).
+  Anleitung ohne Konsolenwissen in `docs/SURFACE.md`.
+
 ## Als Nächstes
 
 1. PDF-Ziehungsprotokoll als Rechtsnachweis.
 2. Rechtstexte (Impressum, Datenschutzerklärung, Verarbeitungsverzeichnis) und
    automatische Löschfristen.
 3. Instagram-Anbindung (Phase 2) und YouTube (Phase 2b).
+
+## Bekannter Fehler — als Nächstes dran
+
+**Mehrere Gewinne funktionieren noch nicht.** `performDraw` zieht `1 + substituteCount`
+Personen und verteilt die Gewinne über `giveaway.prizes[index]` auf die Ränge 0, 1, 2 …
+Die Ränge ab 1 sind aber die **Nachrücker**. Bei drei Gewinnen entstehen dadurch zwei
+Personen, die als „Nachrücker" beschriftet sind, aber einen Preis zugeteilt bekommen —
+auch auf der öffentlichen Seite. Für den 2. und 3. Preis gibt es zudem keine Nachrücker.
+
+Mit **einem** Gewinn ist alles korrekt. Lösung: `winnerSlots` auf `Draw` speichern,
+`winnerSlots + substituteCount` ziehen und das Nachrücken pro Gewinnplatz in einer
+testbaren Funktion `src/draw/promotion.ts` lösen.
+
+## Zurück zu PostgreSQL (falls später Hosting gewünscht)
+
+Nötig wäre: `provider` im Schema auf `postgresql`, `Account.scopes` wieder auf
+`String[]`, `PrismaBetterSqlite3` → `PrismaPg` in `src/lib/db.ts`, frische Migration.
+Zusätzlich zwei Stellen, die auf SQLite anders gelöst sind und dort wieder vereinfacht
+werden könnten: der Duplikat-Abgleich in `storeComments` (SQLite kennt kein
+`skipDuplicates`) und die Suche in `eraseParticipant` (kein `mode: "insensitive"`).
 
 ## Offen / zu beachten
 
