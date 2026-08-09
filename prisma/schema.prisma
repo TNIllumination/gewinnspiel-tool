@@ -1,0 +1,297 @@
+// Datenmodell des Gewinnspiel-Tools.
+// Grundsatz: Datensparsamkeit (Art. 5 Abs. 1 lit. c DSGVO) — es wird nur
+// gespeichert, was zur Durchfuehrung und zum Nachweis der Verlosung noetig ist.
+// Keine Profilbilder, keine Followerzahlen, keine fremden Beitraege.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Die Verbindungs-URL steht in prisma.config.ts (Prisma 7).
+datasource db {
+  provider = "postgresql"
+}
+
+enum Platform {
+  INSTAGRAM
+  TIKTOK
+  YOUTUBE
+  TWITCH
+  SANDBOX
+}
+
+enum GiveawayStatus {
+  DRAFT // Entwurf, noch nicht gestartet
+  COLLECTING // Teilnahmen werden gesammelt
+  COMMITTED // Liste eingefroren, Commit-Hash veroeffentlicht
+  DRAWN // gezogen, Seed offengelegt
+  VERIFYING // Verifikation der Kandidaten laeuft
+  COMPLETED // abgeschlossen
+  CANCELLED
+}
+
+enum RuleType {
+  KEYWORD // Text muss Schluesselwort/Hashtag enthalten
+  MENTIONS // Es muessen N verschiedene Freunde getaggt werden
+  MIN_LENGTH // Mindestlaenge der Antwort
+  TIMEWINDOW // Kommentar muss im Zeitfenster liegen
+  BLOCKLIST // Ausgeschlossene Accounts
+  DEDUPE // Ein Los pro Person / Mehrfachteilnahme
+  BONUS // Zusatzlose nach Bedingung
+}
+
+enum DrawResultStatus {
+  PENDING // Verifikation offen
+  CONFIRMED // geprueft und bestaetigt
+  REJECTED // durchgefallen, Nachruecker zieht nach
+  PROMOTED // war Nachruecker, ist nachgerueckt
+}
+
+enum ClaimStatus {
+  OPEN
+  SUBMITTED
+  SHIPPED
+  EXPIRED
+}
+
+enum DataRequestType {
+  ACCESS // Auskunft nach Art. 15
+  ERASURE // Loeschung nach Art. 17
+}
+
+enum DataRequestStatus {
+  OPEN
+  DONE
+}
+
+/// Der Betreiber. Single-User — bewusst nur ein Datensatz.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  totpSecret   String? // verschluesselt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// Verbundenes Plattformkonto. Tokens liegen AES-256-GCM-verschluesselt.
+model Account {
+  id           String     @id @default(cuid())
+  platform     Platform
+  handle       String
+  externalId   String?
+  accessToken  String? // verschluesselt
+  refreshToken String? // verschluesselt
+  expiresAt    DateTime?
+  scopes       String[]   @default([])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  giveaways    Giveaway[]
+
+  @@unique([platform, externalId])
+}
+
+model Giveaway {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String?
+  platform    Platform
+  accountId   String?
+  account     Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  /// Referenz auf den Beitrag, unter dem kommentiert wird.
+  postUrl        String?
+  postExternalId String?
+
+  startsAt DateTime?
+  endsAt   DateTime?
+
+  /// Anzahl der Nachruecker, die zusaetzlich zum Gewinner gezogen werden.
+  substituteCount Int @default(5)
+
+  status GiveawayStatus @default(DRAFT)
+
+  /// Oeffentliche Darstellung
+  publicResults  Boolean @default(true)
+  maskUsernames  Boolean @default(false)
+  /// Aufbewahrung der Teilnehmerdaten nach der Ziehung, in Tagen.
+  retentionDays  Int     @default(30)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rules   Rule[]
+  entries Entry[]
+  prizes  Prize[]
+  draws   Draw[]
+
+  @@index([status])
+}
+
+model Rule {
+  id         String   @id @default(cuid())
+  giveawayId String
+  giveaway   Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  type       RuleType
+  /// Regelspezifische Konfiguration, per Zod validiert.
+  config     Json
+  position   Int      @default(0)
+  enabled    Boolean  @default(true)
+
+  @@index([giveawayId, position])
+}
+
+/// Eine Teilnahme = ein importierter Kommentar.
+model Entry {
+  id         String   @id @default(cuid())
+  giveawayId String
+  giveaway   Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+
+  /// Kommentar-ID der Plattform, verhindert Doppelimport.
+  externalId  String?
+  username    String
+  userRef     String?
+  text        String
+  commentedAt DateTime
+  likeCount   Int      @default(0)
+
+  /// Anzahl Lose dieser Teilnahme (Bonuslose erhoehen den Wert).
+  lots  Int     @default(1)
+  valid Boolean @default(true)
+  /// Begruendungen der Ablehnung: [{ ruleType, message }]
+  rejections Json @default("[]")
+
+  importedAt DateTime @default(now())
+
+  drawResults DrawResult[]
+
+  @@unique([giveawayId, externalId])
+  @@index([giveawayId, valid])
+  @@index([giveawayId, username])
+}
+
+model Prize {
+  id          String   @id @default(cuid())
+  giveawayId  String
+  giveaway    Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  imageUrl    String?
+  /// 0 = Hauptgewinn, 1 = zweiter Platz, ...
+  rank        Int      @default(0)
+  quantity    Int      @default(1)
+
+  drawResults DrawResult[]
+
+  @@index([giveawayId, rank])
+}
+
+/// Eine Ziehung nach dem Commit-Reveal-Verfahren.
+model Draw {
+  id         String   @id @default(cuid())
+  giveawayId String
+  giveaway   Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+
+  /// SHA-256 ueber Teilnehmerliste + Seed, VOR der Ziehung veroeffentlicht.
+  commitHash       String
+  /// Erst nach der Ziehung offengelegt, macht die Ziehung nachrechenbar.
+  seed             String?
+  seedRevealedAt   DateTime?
+  algorithmVersion String    @default("v1")
+
+  /// Eingefrorene Teilnehmerliste zum Zeitpunkt des Commits.
+  entrantsSnapshot Json
+  entrantCount     Int
+  totalLots        Int
+
+  committedAt DateTime  @default(now())
+  drawnAt     DateTime?
+
+  results DrawResult[]
+
+  @@index([giveawayId])
+}
+
+model DrawResult {
+  id      String @id @default(cuid())
+  drawId  String
+  draw    Draw   @relation(fields: [drawId], references: [id], onDelete: Cascade)
+  entryId String
+  entry   Entry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  prizeId String?
+  prize   Prize?  @relation(fields: [prizeId], references: [id], onDelete: SetNull)
+
+  /// 0 = Gewinner, 1..n = Nachruecker in Reihenfolge.
+  rank   Int
+  status DrawResultStatus @default(PENDING)
+
+  verification Verification?
+  claim        Claim?
+
+  @@unique([drawId, rank])
+  @@index([drawId, status])
+}
+
+/// Nachweis der manuellen (oder bei Twitch automatischen) Pruefung.
+/// Dient als Audit-Beleg, dass die Teilnahmebedingungen geprueft wurden.
+model Verification {
+  id           String     @id @default(cuid())
+  drawResultId String     @unique
+  drawResult   DrawResult @relation(fields: [drawResultId], references: [id], onDelete: Cascade)
+
+  follows   Boolean?
+  liked     Boolean?
+  /// true, wenn die Plattform den Check selbst beantwortet hat (Twitch).
+  automatic Boolean  @default(false)
+  checkedBy String
+  checkedAt DateTime @default(now())
+  note      String?
+}
+
+/// Einloeselink des Gewinners. Versanddaten liegen verschluesselt.
+model Claim {
+  id           String     @id @default(cuid())
+  drawResultId String     @unique
+  drawResult   DrawResult @relation(fields: [drawResultId], references: [id], onDelete: Cascade)
+
+  token         String      @unique
+  status        ClaimStatus @default(OPEN)
+  /// AES-256-GCM, enthaelt Name und Versandadresse.
+  encryptedData String?
+  submittedAt   DateTime?
+  shippedAt     DateTime?
+  /// Automatische Loeschung der Versanddaten ab diesem Zeitpunkt.
+  deleteAfter   DateTime
+
+  @@index([deleteAfter])
+}
+
+/// Revisionssicheres Protokoll aller Verarbeitungsschritte.
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  entity    String
+  entityId  String?
+  actor     String
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+/// Betroffenenanfragen nach Art. 15 / Art. 17 DSGVO.
+model DataRequest {
+  id          String            @id @default(cuid())
+  type        DataRequestType
+  /// Betroffener, identifiziert ueber den Plattform-Usernamen.
+  subject     String
+  status      DataRequestStatus @default(OPEN)
+  note        String?
+  createdAt   DateTime          @default(now())
+  completedAt DateTime?
+
+  @@index([subject])
+}
