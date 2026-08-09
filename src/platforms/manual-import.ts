@@ -6,7 +6,12 @@ import type { CommentInput } from "@/rules/engine";
 // Der Parser erkennt deshalb selbststaendig:
 //   1. CSV/TSV mit Kopfzeile   (username;text;datum)
 //   2. "@name: Text"           (eine Zeile je Teilnahme)
-//   3. "@name" / "Text"        (Name und Text in abwechselnden Zeilen)
+//   3. Bloecke                 (Name in einer Zeile, Text darunter)
+//
+// Fall 3 ist der Alltag bei TikTok: Was man aus der Weboberflaeche kopiert,
+// enthaelt zwischen Name und Text noch Datumsangaben, "Antworten" und
+// Like-Zahlen. Diese Zeilen werden als Beiwerk erkannt und uebersprungen —
+// sonst wuerde eine Like-Zahl wie "12" als Benutzername gelesen.
 //
 // Alles, was er nicht zuordnen kann, wird nicht stillschweigend verworfen,
 // sondern als Warnung gemeldet.
@@ -15,7 +20,7 @@ export interface ImportResult {
   comments: CommentInput[];
   warnings: string[];
   /// Erkanntes Format, wird dem Nutzer zur Kontrolle angezeigt.
-  format: "csv" | "inline" | "alternating" | "leer";
+  format: "csv" | "inline" | "blocks" | "leer";
 }
 
 const USERNAME_HEADERS = ["username", "user", "benutzer", "name", "autor", "author", "handle"];
@@ -40,7 +45,88 @@ export function parseManualImport(
   if (lines.some((l) => /^\s*@?[\w.]{1,30}\s*[::]/.test(l))) {
     return parseInline(lines, fallbackDate);
   }
-  return parseAlternating(lines, fallbackDate);
+  return parseBlocks(lines, fallbackDate);
+}
+
+/// Beiwerk aus der Weboberflaeche: Zeitangaben, Like-Zahlen, Schaltflaechen.
+/// Diese Zeilen gehoeren weder zum Namen noch zum Kommentar.
+function isNoise(line: string): boolean {
+  const l = line.trim().replace(/^[·•|]\s*/, "").toLowerCase();
+  if (!l) return true;
+
+  // Reine Zahlen bzw. Like-Zahlen wie "1.2k", "12", "3,4 M"
+  if (/^\d+([.,]\d+)?\s*[km]?$/.test(l)) return true;
+
+  // Relative Zeitangaben: "2d", "vor 3 Tagen", "5 hours ago", "1 std."
+  if (/^(vor\s+)?\d+\s*(s|m|h|d|w|y|min|std|sek|tag|tage|tagen|woche|wochen|monat|monaten|jahr|jahren|second|minute|hour|day|week|month|year)s?\.?(\s+(ago|her))?$/.test(l))
+    return true;
+
+  // Absolute Datumsangaben: "2026-1-15", "15.01.2026", "1/15"
+  if (/^\d{1,4}[-./]\d{1,2}([-./]\d{2,4})?$/.test(l)) return true;
+
+  // Schaltflaechen und Hinweise der Oberflaeche
+  const CHROME = [
+    "antworten", "reply", "mehr anzeigen", "weniger anzeigen", "show more",
+    "show less", "übersetzung anzeigen", "see translation", "angeheftet",
+    "pinned", "autor", "creator", "gefällt mir", "like", "teilen", "share",
+    "melden", "report", "heute", "gestern", "today", "yesterday",
+  ];
+  if (CHROME.includes(l)) return true;
+  if (/^(alle\s+)?\d+\s+antworten( anzeigen)?$/.test(l)) return true;
+  if (/^view( all)? \d+ repl(y|ies)$/.test(l)) return true;
+
+  return false;
+}
+
+/// Sieht die Zeile nach einem Benutzernamen aus? Handles bestehen aus einem
+/// Wort ohne Leerzeichen — Kommentartexte enthalten praktisch immer welche.
+function looksLikeHandle(line: string): boolean {
+  const l = line.trim().replace(/^@/, "");
+  return /^[\w.]{2,30}$/.test(l) && !/^\d+$/.test(l);
+}
+
+/// Bloeckeweise lesen: eine Handle-Zeile eroeffnet eine Teilnahme, alle
+/// folgenden Textzeilen gehoeren dazu, bis der naechste Handle kommt.
+/// Dadurch ueberleben auch mehrzeilige Kommentare den Import.
+function parseBlocks(lines: string[], fallbackDate: Date): ImportResult {
+  const comments: CommentInput[] = [];
+  const warnings: string[] = [];
+
+  const relevant = lines.filter((l) => !isNoise(l));
+  let current: { username: string; parts: string[] } | null = null;
+  let index = 0;
+
+  const flush = () => {
+    if (!current) return;
+    const text = current.parts.join(" ").trim();
+    if (!text) {
+      warnings.push(`„${truncate(current.username)}“ übersprungen — kein Kommentartext gefunden.`);
+    } else {
+      comments.push({
+        username: current.username,
+        text,
+        externalId: null,
+        // Reihenfolge der Bloecke = Reihenfolge der Kommentare.
+        commentedAt: new Date(fallbackDate.getTime() + index++ * 1000),
+        likeCount: 0,
+      });
+    }
+    current = null;
+  };
+
+  for (const line of relevant) {
+    if (looksLikeHandle(line)) {
+      flush();
+      current = { username: line.trim().replace(/^@/, ""), parts: [] };
+    } else if (current) {
+      current.parts.push(line.trim());
+    } else {
+      warnings.push(`„${truncate(line)}“ übersprungen — davor stand kein Benutzername.`);
+    }
+  }
+  flush();
+
+  return { comments, warnings, format: "blocks" };
 }
 
 function detectDelimiter(line: string): string | null {
@@ -156,40 +242,6 @@ function parseInline(lines: string[], fallbackDate: Date): ImportResult {
   });
 
   return { comments, warnings, format: "inline" };
-}
-
-/// Name in einer Zeile, Text in der naechsten — so sieht ein Copy-Paste
-/// aus der TikTok-Weboberflaeche typischerweise aus.
-function parseAlternating(lines: string[], fallbackDate: Date): ImportResult {
-  const comments: CommentInput[] = [];
-  const warnings: string[] = [];
-
-  for (let i = 0; i + 1 < lines.length; i += 2) {
-    const username = lines[i].trim().replace(/^@/, "");
-    const body = lines[i + 1].trim();
-
-    if (!/^[\w.]{1,30}$/.test(username)) {
-      warnings.push(
-        `Zeile ${i + 1} übersprungen — „${truncate(lines[i])}“ sieht nicht wie ein Benutzername aus.`,
-      );
-      i -= 1; // Nur diese Zeile verwerfen, nicht den Takt verlieren.
-      continue;
-    }
-
-    comments.push({
-      username,
-      text: body,
-      externalId: null,
-      commentedAt: new Date(fallbackDate.getTime() + i * 1000),
-      likeCount: 0,
-    });
-  }
-
-  if (lines.length % 2 !== 0) {
-    warnings.push("Die letzte Zeile hatte kein Gegenstück und wurde ignoriert.");
-  }
-
-  return { comments, warnings, format: "alternating" };
 }
 
 function parseDate(

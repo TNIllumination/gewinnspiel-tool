@@ -71,24 +71,67 @@ describe("Import: Name-Doppelpunkt-Text", () => {
   });
 });
 
-describe("Import: abwechselnde Zeilen (TikTok-Copy-Paste)", () => {
+describe("Import: Blöcke (TikTok-Copy-Paste)", () => {
   it("paart Name und Text", () => {
     const r = parseManualImport(
       ["@anna", "Ich bin dabei", "@ben", "Auch dabei"].join("\n"),
       FALLBACK,
     );
-    expect(r.format).toBe("alternating");
+    expect(r.format).toBe("blocks");
     expect(r.comments).toHaveLength(2);
     expect(r.comments[1]).toMatchObject({ username: "ben", text: "Auch dabei" });
   });
 
-  it("verliert nach einer Stoerzeile nicht den Takt", () => {
+  it("überlebt echtes TikTok-Copy-Paste mit Datum, Antworten und Like-Zahlen", () => {
+    // So sieht ein Ausschnitt aus der TikTok-Weboberfläche wirklich aus.
+    const paste = [
+      "anna_berg",
+      "Ich bin dabei @ben @carla",
+      "2026-1-15",
+      "Antworten",
+      "12",
+      "ben_wald",
+      "Mega, ich bin dabei @anna @dora",
+      "vor 2 Tagen",
+      "Antworten",
+      "1.2k",
+      "Alle 3 Antworten anzeigen",
+      "carla_stein",
+      "Bin dabei @ben @anna",
+      "3d",
+      "Antworten",
+      "5",
+    ].join("\n");
+
+    const r = parseManualImport(paste, FALLBACK);
+
+    expect(r.comments).toHaveLength(3);
+    expect(r.comments.map((c) => c.username)).toEqual([
+      "anna_berg",
+      "ben_wald",
+      "carla_stein",
+    ]);
+    // Entscheidend: die Like-Zahl "12" darf kein Teilnehmer geworden sein.
+    expect(r.comments.map((c) => c.username)).not.toContain("12");
+    expect(r.comments[1].text).toBe("Mega, ich bin dabei @anna @dora");
+  });
+
+  it("hält mehrzeilige Kommentare zusammen", () => {
     const r = parseManualImport(
-      ["Vor 2 Tagen antworten", "@anna", "Ich bin dabei"].join("\n"),
+      ["anna_berg", "Ich bin dabei", "und drücke die Daumen @ben @carla", "Antworten", "3"].join("\n"),
       FALLBACK,
     );
     expect(r.comments).toHaveLength(1);
-    expect(r.comments[0]).toMatchObject({ username: "anna", text: "Ich bin dabei" });
+    expect(r.comments[0].text).toBe("Ich bin dabei und drücke die Daumen @ben @carla");
+  });
+
+  it("meldet Text ohne vorangehenden Namen", () => {
+    const r = parseManualImport(
+      ["Kommentare (243)", "anna_berg", "Ich bin dabei"].join("\n"),
+      FALLBACK,
+    );
+    expect(r.comments).toHaveLength(1);
+    expect(r.warnings[0]).toContain("kein Benutzername");
   });
 });
 
