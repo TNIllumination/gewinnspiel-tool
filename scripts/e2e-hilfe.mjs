@@ -1,6 +1,10 @@
 import { chromium } from "playwright";
 const B = "http://localhost:3000";
-const browser = await chromium.launch();
+// Auf manchen Rechnern liegt Chromium nicht dort, wo Playwright es erwartet.
+// CHROMIUM_PFAD zeigt dann direkt auf die Programmdatei.
+const browser = await chromium.launch(
+  process.env.CHROMIUM_PFAD ? { executablePath: process.env.CHROMIUM_PFAD } : {},
+);
 const page = await browser.newPage();
 page.setDefaultTimeout(20000);
 let bad = false;

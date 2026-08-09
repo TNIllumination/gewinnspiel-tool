@@ -76,7 +76,7 @@ export function ManualImport({
           überspringt es, du kannst dich also ruhig überlappen.
         </p>
         <p className="mt-2 text-xs text-slate-600">
-          Datumsangaben, „Antworten" und Like-Zahlen werden automatisch aussortiert.
+          Datumsangaben, „Antworten&ldquo; und Like-Zahlen werden automatisch aussortiert.
           Auch eine Tabelle mit Kopfzeile (<code>Benutzer;Kommentar;Datum</code>) wird gelesen.
         </p>
       </details>
@@ -141,7 +141,7 @@ export function ManualImport({
         result.count === 0 ? (
           <Notice title="Es wurde keine einzige Teilnahme erkannt" tone="warn">
             Erkannt werden drei Formate: eine Tabelle mit Kopfzeile
-            (<code>Benutzer;Kommentar;Datum</code>), „Name: Text" je Zeile, oder der
+            (<code>Benutzer;Kommentar;Datum</code>), „Name: Text&ldquo; je Zeile, oder der
             Name in einer Zeile mit dem Kommentar darunter. Prüf am besten, ob beim
             Kopieren die Namen mitgekommen sind.
           </Notice>

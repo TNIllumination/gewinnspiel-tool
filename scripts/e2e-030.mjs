@@ -1,4 +1,4 @@
-// Praxistest für Fassung 0.3.0: mehrere Plattformen, Import in Etappen,
+// Praxistest für Fassung 0.3.1: mehrere Plattformen, Import in Etappen,
 // mehrere Gewinne, Nachrücken pro Gewinnplatz, Rechtstexte, Veröffentlichung.
 import { chromium } from "playwright";
 import { createHash } from "node:crypto";
@@ -32,7 +32,11 @@ const INSTAGRAM_TEIL = [
   "erik_falke", "Ich bin dabei", "Antworten",
 ].join("\n");
 
-const browser = await chromium.launch();
+// Auf manchen Rechnern liegt Chromium nicht dort, wo Playwright es erwartet.
+// CHROMIUM_PFAD zeigt dann direkt auf die Programmdatei.
+const browser = await chromium.launch(
+  process.env.CHROMIUM_PFAD ? { executablePath: process.env.CHROMIUM_PFAD } : {},
+);
 const page = await browser.newPage();
 page.setDefaultTimeout(20000);
 
@@ -56,9 +60,29 @@ try {
   await page.fill('input[name="organizer"]', "Max Mustermann");
   await page.fill('input[name="contact"]', "kontakt@beispiel.de");
   await page.fill('input[name="publishBaseUrl"]', "https://beispiel.github.io/gewinnspiele");
+  // Bewusst ohne https:// — das Tool muss es ergänzen, sonst wird daraus ein
+  // relativer und damit toter Link.
+  await page.fill('input[name="impressumUrl"]', "mein.online-impressum.de/beispiel");
   await page.getByRole("button", { name: "Speichern" }).click();
   await page.waitForTimeout(2000);
-  ok("Veranstalterangaben gespeichert");
+  await page.reload();
+  const impressum = await page.inputValue('input[name="impressumUrl"]');
+  if (impressum !== "https://mein.online-impressum.de/beispiel") {
+    no("Impressum", `nicht ergänzt: ${impressum}`);
+  } else {
+    ok("Veranstalterangaben gespeichert", "https:// ergänzt");
+  }
+
+  // ── Übersichtsseite vor dem ersten Gewinnspiel ────────────────────────────
+  // Genau der Weg, der GitHub Pages überhaupt erst einschaltbar macht.
+  await page.getByRole("button", { name: "Übersichtsseite erzeugen" }).click();
+  await page.waitForTimeout(2000);
+  const uebersicht = readFileSync("veroeffentlichung/index.html", "utf8");
+  if (!uebersicht.includes("https://mein.online-impressum.de/beispiel")) {
+    no("Übersichtsseite", "Impressum-Link fehlt im Fußbereich");
+  } else {
+    ok("Übersichtsseite ohne Gewinnspiel erzeugt");
+  }
 
   // ── Gewinnspiel über ZWEI Plattformen ─────────────────────────────────────
   await page.goto(`${B}/admin`);
@@ -264,13 +288,25 @@ try {
     ok("Hash aus der veröffentlichten Datei nachgerechnet", hash.slice(0, 16) + "…");
   }
 
+  // ── Übersichtsseite kommt mit ─────────────────────────────────────────────
+  // Ohne sie lässt sich GitHub Pages gar nicht erst einschalten.
+  const index = readFileSync("veroeffentlichung/index.html", "utf8");
+  if (!index.includes(`href="${slug}.html"`)) {
+    no("Übersichtsseite", `verlinkt ${slug}.html nicht`);
+  } else if (!index.includes("in keiner Verbindung")) {
+    no("Übersichtsseite", "Pflichthinweis zu den Plattformen fehlt");
+  } else {
+    ok("Übersichtsseite verlinkt die Gewinnspielseite");
+  }
+
   // ── Öffentliche Seite ─────────────────────────────────────────────────────
   const pub = await browser.newPage();
   await pub.goto(`${B}/gewinnspiel/${slug}`);
   const pubText = await pub.innerText("body");
   if (!pubText.includes("Ich bin dabei")) no("Öffentlich", "Gewinnerkommentar fehlt");
   else if (!pubText.includes("Verwaltung")) no("Öffentlich", "Rückweg fehlt");
-  else ok("Öffentliche Seite zeigt Kommentar und Rückweg");
+  else if (!pubText.includes("Impressum")) no("Öffentlich", "Impressum fehlt im Fußbereich");
+  else ok("Öffentliche Seite zeigt Kommentar, Impressum und Rückweg");
 
   await pub.screenshot({ path: "/tmp/030-public.png", fullPage: true });
   await page.screenshot({ path: "/tmp/030-admin.png", fullPage: true });

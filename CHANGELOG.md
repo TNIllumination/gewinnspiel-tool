@@ -1,5 +1,13 @@
 # Was sich geändert hat
 
+## 0.3.1
+
+- Übersichtsseite für die veröffentlichten Gewinnspiele — sie kommt bei jeder Veröffentlichung automatisch mit
+- Sie lässt sich unter „Einstellungen" auch einzeln erzeugen: GitHub Pages lässt sich erst einschalten, wenn im Repository etwas liegt
+- Feld für die Adresse des Impressums; es erscheint im Fußbereich der erzeugten Seiten und in beiden Fassungen der Teilnahmebedingungen
+- Fehlt beim Eintragen „https://", wird es ergänzt — sonst wäre der Link tot
+- Anleitung zu GitHub Pages in der richtigen Reihenfolge: erst hochladen, dann einschalten
+
 ## 0.3.0
 
 - Einlesen in Etappen: schon Vorhandenes wird erkannt und übersprungen — nötig, weil TikTok nie alle Kommentare auf einmal herausgibt

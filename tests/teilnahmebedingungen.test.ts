@@ -176,3 +176,35 @@ describe("Nachweis-Text", () => {
     expect(text).toContain("merch-verlosung.html");
   });
 });
+
+describe("Impressum", () => {
+  const MIT: Organizer = {
+    ...WHO,
+    impressumUrl: "https://mein.online-impressum.de/tobisreise",
+  };
+
+  it("erscheint in den ausführlichen Bedingungen, sobald es hinterlegt ist", () => {
+    expect(buildTerms(giveaway(), MIT)).toContain(
+      "Impressum: https://mein.online-impressum.de/tobisreise",
+    );
+  });
+
+  it("erscheint auch in der Kurzfassung für den Beitrag", () => {
+    expect(buildShortTerms(giveaway(), MIT).text).toContain(
+      "Impressum: https://mein.online-impressum.de/tobisreise",
+    );
+  });
+
+  // Für eine rein private Verlosung gilt die Pflicht nicht — das Tool
+  // erfindet dann auch keine Zeile.
+  it("fehlt vollständig, wenn keines hinterlegt ist", () => {
+    expect(buildTerms(giveaway(), WHO)).not.toContain("Impressum");
+    expect(buildShortTerms(giveaway(), WHO).text).not.toContain("Impressum");
+  });
+
+  it("sprengt die Bildunterschrift nicht", () => {
+    expect(buildShortTerms(giveaway(), MIT).length).toBeLessThanOrEqual(
+      CAPTION_LIMIT,
+    );
+  });
+});

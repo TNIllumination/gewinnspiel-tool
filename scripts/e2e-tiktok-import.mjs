@@ -33,7 +33,11 @@ const bad = (l, d) => {
   console.error(`✗ ${l} — ${d}`);
 };
 
-const browser = await chromium.launch();
+// Auf manchen Rechnern liegt Chromium nicht dort, wo Playwright es erwartet.
+// CHROMIUM_PFAD zeigt dann direkt auf die Programmdatei.
+const browser = await chromium.launch(
+  process.env.CHROMIUM_PFAD ? { executablePath: process.env.CHROMIUM_PFAD } : {},
+);
 const page = await browser.newPage();
 page.setDefaultTimeout(20000);
 
@@ -49,7 +53,9 @@ try {
 
   // TikTok-Gewinnspiel anlegen
   await page.fill('input[name="title"]', `TikTok-Import ${Date.now()}`);
-  await page.selectOption('select[name="platform"]', "TIKTOK");
+  // Seit 0.3.0 sind Plattformen Kästchen, kein Auswahlfeld.
+  await page.uncheck('input[name="platform_SANDBOX"]');
+  await page.check('input[name="platform_TIKTOK"]');
   await page.getByRole("button", { name: "Anlegen" }).click();
   await page.waitForURL(/\/admin\/[a-z0-9]+$/);
   ok("TikTok-Gewinnspiel angelegt");
@@ -63,7 +69,7 @@ try {
   }
 
   // Anleitung vorhanden?
-  if (!body.includes("So kommst du an die TikTok-Kommentare")) {
+  if (!body.includes("So kommst du an die Kommentare")) {
     bad("Anleitung", "fehlt");
   } else {
     ok("Kurzanleitung vorhanden");

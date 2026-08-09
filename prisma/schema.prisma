@@ -81,6 +81,9 @@ model Settings {
   /// Basisadresse der veröffentlichten Seiten, z. B.
   /// https://tnillumination.github.io/gewinnspiele
   publishBaseUrl String @default("")
+  /// Adresse des Impressums. Die veroeffentlichten Seiten sind ein selbst
+  /// betriebenes Online-Angebot und muessen es erreichbar machen (§ 5 DDG).
+  impressumUrl   String @default("")
   updatedAt DateTime @updatedAt
 }
 

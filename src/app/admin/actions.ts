@@ -14,7 +14,7 @@ import {
 } from "@/lib/auth";
 import { evaluateEntries, type CommentInput, type RuleSpec } from "@/rules/engine";
 import { entryFingerprint } from "@/rules/text";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { commit, draw, type Entrant } from "@/draw/commit-reveal";
 import { prizeIdForSlot, resolveWinners } from "@/draw/promotion";
@@ -23,7 +23,13 @@ import {
   buildShortTerms,
   buildTerms,
 } from "@/legal/teilnahmebedingungen";
-import { buildPublishPage, type PublishInput } from "@/legal/publish";
+import {
+  buildIndexPage,
+  buildPublishPage,
+  withScheme,
+  type IndexEntry,
+  type PublishInput,
+} from "@/legal/publish";
 import { parseManualImport } from "@/platforms/manual-import";
 import { generateSandboxComments } from "@/platforms/sandbox";
 import type { PlatformId } from "@/platforms/base";
@@ -759,6 +765,87 @@ export async function shutdownServer() {
 
 // ── Rechtstexte und Veröffentlichung ─────────────────────────────────────────
 
+const PUBLISH_DIR = "veroeffentlichung";
+
+/// Schreibt die Startseite des Veroeffentlichungsordners neu.
+///
+/// Grundlage sind die Dateien, die tatsaechlich im Ordner liegen — nicht die
+/// Gewinnspiele in der Datenbank. Aufgelistet wird damit nur, was auch
+/// hochgeladen werden kann.
+async function writeIndexPage() {
+  const dir = join(process.cwd(), PUBLISH_DIR);
+  await mkdir(dir, { recursive: true });
+
+  let files: string[] = [];
+  try {
+    files = (await readdir(dir)).filter(
+      (name) => name.endsWith(".html") && name !== "index.html",
+    );
+  } catch {
+    files = [];
+  }
+
+  const slugs = files.map((name) => name.slice(0, -".html".length));
+  const giveaways =
+    slugs.length > 0
+      ? await db.giveaway.findMany({ where: { slug: { in: slugs } } })
+      : [];
+  const bySlug = new Map(giveaways.map((g) => [g.slug, g]));
+
+  const entries: IndexEntry[] = slugs.map((slug) => {
+    const giveaway = bySlug.get(slug);
+    return {
+      slug,
+      // Fehlt das Gewinnspiel in der Datenbank, bleibt die Datei trotzdem
+      // erreichbar — sie liegt ja online. Nur der Titel fehlt dann.
+      title: giveaway?.title ?? slug,
+      endsAt: giveaway?.endsAt ?? null,
+      completed: giveaway?.status === "COMPLETED",
+    };
+  });
+
+  entries.sort((a, b) => a.title.localeCompare(b.title, "de"));
+
+  const settings = await db.settings.findUnique({ where: { id: "settings" } });
+  const html = buildIndexPage({
+    organizer: settings?.organizer ?? "",
+    contact: settings?.contact ?? "",
+    impressumUrl: settings?.impressumUrl ?? "",
+    entries,
+  });
+
+  await writeFile(join(dir, "index.html"), html, "utf8");
+  return { fileName: "index.html", count: entries.length };
+}
+
+/// Erzeugt allein die Übersichtsseite.
+///
+/// Gebraucht wird das vor dem ersten Gewinnspiel: GitHub Pages laesst sich
+/// erst einschalten, wenn im Repository ueberhaupt etwas liegt.
+export async function publishIndex() {
+  const userId = await requireUser();
+  const settings = await db.settings.findUnique({ where: { id: "settings" } });
+  if (!settings?.organizer?.trim() || !settings?.contact?.trim()) {
+    fail(
+      "Für die Übersichtsseite fehlen die Veranstalterangaben. " +
+        "Bitte oben Name und Kontakt eintragen und speichern.",
+    );
+  }
+
+  const result = await writeIndexPage();
+
+  await audit({
+    action: "index.published",
+    entity: "Settings",
+    entityId: "settings",
+    actor: userId,
+    detail: { count: result.count },
+  });
+
+  revalidatePath("/admin/einstellungen");
+  return result;
+}
+
 async function loadForTerms(giveawayId: string) {
   const giveaway = await db.giveaway.findUniqueOrThrow({
     where: { id: giveawayId },
@@ -787,6 +874,7 @@ async function loadForTerms(giveawayId: string) {
       organizer: settings?.organizer ?? "",
       contact: settings?.contact ?? "",
       publishBaseUrl: settings?.publishBaseUrl ?? "",
+      impressumUrl: settings?.impressumUrl ?? "",
     },
     forTerms: {
       title: giveaway.title,
@@ -909,13 +997,18 @@ export async function publishPage(giveawayId: string) {
     terms,
     organizer: who.organizer,
     contact: who.contact,
+    impressumUrl: who.impressumUrl,
     draw: drawData,
   });
 
-  const dir = join(process.cwd(), "veroeffentlichung");
+  const dir = join(process.cwd(), PUBLISH_DIR);
   await mkdir(dir, { recursive: true });
   const fileName = `${giveaway.slug}.html`;
   await writeFile(join(dir, fileName), html, "utf8");
+
+  // Die Übersicht wird jedes Mal neu geschrieben, damit sie nicht
+  // hinterherhinkt.
+  await writeIndexPage();
 
   await audit({
     action: "giveaway.published",
@@ -938,17 +1031,18 @@ export async function saveSettings(formData: FormData) {
 
   const organizer = String(formData.get("organizer") ?? "").trim();
   const contact = String(formData.get("contact") ?? "").trim();
-  const publishBaseUrl = String(formData.get("publishBaseUrl") ?? "")
-    .trim()
-    .replace(/\/+$/, "");
+  const publishBaseUrl = withScheme(
+    String(formData.get("publishBaseUrl") ?? "").trim().replace(/\/+$/, ""),
+  );
+  const impressumUrl = withScheme(String(formData.get("impressumUrl") ?? "").trim());
 
   if (!organizer) fail("Bitte den Namen des Veranstalters angeben.");
   if (!contact) fail("Bitte eine Kontaktmöglichkeit angeben.");
 
   await db.settings.upsert({
     where: { id: "settings" },
-    create: { id: "settings", organizer, contact, publishBaseUrl },
-    update: { organizer, contact, publishBaseUrl },
+    create: { id: "settings", organizer, contact, publishBaseUrl, impressumUrl },
+    update: { organizer, contact, publishBaseUrl, impressumUrl },
   });
 
   await audit({

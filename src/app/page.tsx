@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { Badge, Card, formatDateTime } from "@/components/ui";
+import { ImpressumLink } from "@/components/impressum-link";
 
 export const dynamic = "force-dynamic";
 
@@ -60,11 +61,14 @@ export default async function HomePage() {
           Diese Aktionen stehen in keiner Verbindung zu Instagram, TikTok oder YouTube
           und werden von diesen weder gesponsert noch unterstützt oder organisiert.
         </p>
-        {/* Ohne diesen Link ist die Seite beim ersten Start eine Sackgasse:
-            Es gäbe keinen Weg zur Ersteinrichtung. */}
-        <Link href="/admin" className="shrink-0 underline hover:text-slate-800">
-          Verwaltung
-        </Link>
+        <span className="flex shrink-0 gap-4">
+          <ImpressumLink />
+          {/* Ohne diesen Link ist die Seite beim ersten Start eine Sackgasse:
+              Es gäbe keinen Weg zur Ersteinrichtung. */}
+          <Link href="/admin" className="shrink-0 underline hover:text-slate-800">
+            Verwaltung
+          </Link>
+        </span>
       </footer>
     </main>
   );

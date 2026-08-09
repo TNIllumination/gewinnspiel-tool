@@ -33,6 +33,9 @@ export interface Organizer {
   organizer: string;
   contact: string;
   publishBaseUrl?: string;
+  /// Adresse des Impressums. Leer, wenn keines hinterlegt ist — ob eines
+  /// noetig ist, entscheidet der Veranstalter, nicht das Werkzeug.
+  impressumUrl?: string;
 }
 
 export class MissingOrganizerError extends Error {
@@ -95,7 +98,9 @@ export function buildTerms(
   add("Dies ist ein Gewinnspiel mit Werbecharakter.", "");
 
   add(`Veranstalter: ${who.organizer}`);
-  add(`Kontakt für Rückfragen: ${who.contact}`, "");
+  add(`Kontakt für Rückfragen: ${who.contact}`);
+  if (who.impressumUrl?.trim()) add(`Impressum: ${who.impressumUrl.trim()}`);
+  add("");
 
   // Zeitraum
   if (giveaway.startsAt || giveaway.endsAt) {
@@ -205,6 +210,12 @@ export function buildShortTerms(
       "",
       `Vollständige Teilnahmebedingungen: ${who.publishBaseUrl.replace(/\/+$/, "")}/${giveaway.slug}.html`,
     );
+  }
+
+  // Kurz genug, um in die Bildunterschrift zu passen — und es staerkt die
+  // Position des Veranstalters, wenn das Impressum direkt daneben steht.
+  if (who.impressumUrl?.trim()) {
+    lines.push(`Impressum: ${who.impressumUrl.trim()}`);
   }
 
   const text = lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();

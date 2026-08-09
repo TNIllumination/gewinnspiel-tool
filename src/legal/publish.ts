@@ -15,6 +15,7 @@ export interface PublishInput {
   terms: string;
   organizer: string;
   contact: string;
+  impressumUrl?: string | null;
   /// Erst nach der Ziehung gefüllt.
   draw?: {
     commitHash: string;
@@ -147,8 +148,126 @@ ${winnerBlock}
 <div class="bedingungen">${escapeHtml(input.terms)}</div>
 ${listBlock}
 <footer>
-  Veranstalter: ${escapeHtml(input.organizer)} · Kontakt: ${escapeHtml(input.contact)}
+  Veranstalter: ${escapeHtml(input.organizer)} · Kontakt: ${escapeHtml(input.contact)}${impressumLink(input.impressumUrl)}
 </footer>
+
+</body>
+</html>
+`;
+}
+
+/// Ergaenzt ein fehlendes `https://`.
+///
+/// „mein.online-impressum.de/tobisreise" ohne Schema liest der Browser als
+/// relativen Pfad — der Link zeigt dann ins Nichts. Das faellt beim Eintragen
+/// niemandem auf, sondern erst dem Teilnehmer, der draufklickt.
+export function withScheme(url: string): string {
+  const clean = url.trim();
+  if (!clean) return "";
+  // mailto:, tel: und Konsorten bleiben unberuehrt.
+  if (/^[a-z][a-z0-9+.-]*:/i.test(clean)) return clean;
+  return `https://${clean}`;
+}
+
+/// Impressum-Verweis fuer die Fusszeile. Leer, wenn keines hinterlegt ist —
+/// die Einschaetzung, ob eines noetig ist, gehoert dem Betreiber.
+function impressumLink(url?: string | null): string {
+  const clean = url?.trim();
+  if (!clean) return "";
+  return ` · <a href="${escapeHtml(clean)}" target="_blank" rel="noreferrer">Impressum</a>`;
+}
+
+export interface IndexEntry {
+  /// Dateiname ohne Endung, zugleich der Link.
+  slug: string;
+  title: string;
+  endsAt?: Date | null;
+  completed: boolean;
+}
+
+/// Die Startseite der Veroeffentlichung.
+///
+/// Sie hat zwei Aufgaben: Sie ist der erste Inhalt im Repository — ohne den
+/// laesst sich GitHub Pages gar nicht einschalten — und sie gibt dir eine
+/// dauerhafte Adresse zum Verlinken, statt fuer jedes Gewinnspiel eine neue.
+export function buildIndexPage(input: {
+  organizer: string;
+  contact: string;
+  impressumUrl?: string | null;
+  entries: IndexEntry[];
+}): string {
+  const liste =
+    input.entries.length === 0
+      ? `<p class="leer">Hier erscheinen die Gewinnspiele, sobald das erste
+         veröffentlicht ist.</p>`
+      : `<ul class="gewinnspiele">
+${input.entries
+  .map(
+    (e) => `  <li>
+    <a href="${escapeHtml(e.slug)}.html">${escapeHtml(e.title)}</a>
+    <span class="zustand">${e.completed ? "abgeschlossen" : "läuft"}${
+      e.endsAt ? ` · Einsendeschluss ${formatDe(e.endsAt)}` : ""
+    }</span>
+  </li>`,
+  )
+  .join("\n")}
+</ul>`;
+
+  return `<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gewinnspiele — ${escapeHtml(input.organizer)}</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0 auto; padding: 2rem 1.25rem 5rem; max-width: 44rem;
+    font: 17px/1.7 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: #1e293b; background: #f8fafc; overflow-wrap: break-word; }
+  h1 { font-size: 1.9rem; margin: 0 0 .5rem; }
+  .unter { color: #64748b; margin: 0 0 2rem; }
+  ul.gewinnspiele { list-style: none; padding: 0; margin: 0; }
+  ul.gewinnspiele li { background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: .75rem; }
+  ul.gewinnspiele a { font-size: 1.1rem; font-weight: 600; color: #1d4ed8;
+    text-decoration: none; }
+  ul.gewinnspiele a:hover { text-decoration: underline; }
+  .zustand { display: block; font-size: .85rem; color: #64748b; margin-top: .2rem; }
+  .leer { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 1.25rem; color: #64748b; }
+  .hinweis { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0;
+    font-size: .85rem; color: #64748b; }
+  a { color: #1d4ed8; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e2e8f0; background: #0f172a; }
+    ul.gewinnspiele li, .leer { background: #1e293b; border-color: #334155; }
+    a, ul.gewinnspiele a { color: #93c5fd; }
+    .hinweis { border-top-color: #334155; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Gewinnspiele</h1>
+<p class="unter">von ${escapeHtml(input.organizer)}</p>
+
+${liste}
+
+<div class="hinweis">
+  <p>
+    Hier findest du die vollständigen Teilnahmebedingungen und nach der Ziehung
+    den Nachweis, dass fair gezogen wurde — samt Teilnehmerliste zum Nachrechnen.
+  </p>
+  <p>
+    Diese Aktionen stehen in keiner Verbindung zu Instagram, TikTok oder YouTube und
+    werden von diesen weder gesponsert noch unterstützt oder organisiert. Mit der
+    Teilnahme stellst du diese Plattformen von jeglicher Haftung frei. Fragen bitte
+    nicht an die Plattform, sondern an ${escapeHtml(input.organizer)}
+    (${escapeHtml(input.contact)}).
+  </p>
+  <p>Veranstalter: ${escapeHtml(input.organizer)}${impressumLink(input.impressumUrl)}</p>
+</div>
 
 </body>
 </html>

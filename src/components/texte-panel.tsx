@@ -66,12 +66,22 @@ export function TextePanel({
 
       {datei ? (
         <Notice title={`Datei erzeugt: ${datei.fileName}`}>
-          Sie liegt im Ordner <code>veroeffentlichung</code> neben start.bat.
+          Sie liegt im Ordner <code>veroeffentlichung</code> neben start.bat —
+          zusammen mit <code>index.html</code>, der Übersichtsseite, die dabei
+          neu geschrieben wurde.
           <ol className="mt-2 list-inside list-decimal space-y-1">
             <li>Auf GitHub dein Veröffentlichungs-Repo öffnen</li>
-            <li><strong>Add file → Upload files</strong>, die Datei hineinziehen</li>
+            <li>
+              <strong>Add file → Upload files</strong>, <strong>beide</strong>{" "}
+              Dateien hineinziehen
+            </li>
             <li>Unten auf <strong>Commit changes</strong></li>
           </ol>
+          <p className="mt-2">
+            Läuft GitHub Pages noch nicht: Erst hochladen, <strong>dann</strong>{" "}
+            unter <em>Settings → Pages</em> einschalten. Bei einem leeren
+            Repository bietet GitHub dort keinen Branch an.
+          </p>
           {datei.url ? (
             <p className="mt-2">
               Danach erreichbar unter:{" "}

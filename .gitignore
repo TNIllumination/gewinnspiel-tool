@@ -50,3 +50,7 @@ next-env.d.ts
 *.db-journal
 *.db-wal
 *.db-shm
+
+# Erzeugte Seiten fuer GitHub Pages — enthalten Teilnehmernamen und gehoeren
+# in das eigene Veroeffentlichungs-Repo, nicht in den Quellcode.
+/veroeffentlichung

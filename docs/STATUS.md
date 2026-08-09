@@ -66,6 +66,14 @@
   als HTML für GitHub Pages inklusive nachrechenbarer Teilnehmerliste; Einsendeschluss,
   `releaseCommit`, Beenden-Knopf, `npm run passwort-neu`.
 
+- **Fassung 0.3.1**: Übersichtsseite `veroeffentlichung/index.html`
+  (`buildIndexPage` in `src/legal/publish.ts`), geschrieben bei jeder
+  Veröffentlichung und einzeln über `publishIndex()` — nötig, weil GitHub Pages
+  sich erst einschalten lässt, wenn im Repository Inhalt liegt.
+  `Settings.impressumUrl` samt `withScheme()`; der Verweis erscheint im
+  Fußbereich beider erzeugter Seitentypen, in beiden Fassungen der
+  Teilnahmebedingungen und auf den örtlichen öffentlichen Seiten.
+
 ## Als Nächstes
 
 1. PDF-Ziehungsprotokoll als Rechtsnachweis.

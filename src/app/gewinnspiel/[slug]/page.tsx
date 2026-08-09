@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { maskUsername } from "@/lib/audit";
 import { prizeIdForSlot, resolveWinners } from "@/draw/promotion";
 import { Badge, Card, CardTitle, Notice, formatDateTime } from "@/components/ui";
+import { ImpressumLink } from "@/components/impressum-link";
 
 export const dynamic = "force-dynamic";
 
@@ -215,9 +216,12 @@ export default async function PublicGiveawayPage({
           Teilnahme stellst du diese Plattformen von jeglicher Haftung frei; Fragen
           zum Gewinnspiel richte bitte an den Veranstalter, nicht an die Plattform.
         </p>
-        <Link href="/admin" className="shrink-0 underline hover:text-slate-800">
-          Verwaltung
-        </Link>
+        <span className="flex shrink-0 gap-4">
+          <ImpressumLink />
+          <Link href="/admin" className="shrink-0 underline hover:text-slate-800">
+            Verwaltung
+          </Link>
+        </span>
       </footer>
     </main>
   );

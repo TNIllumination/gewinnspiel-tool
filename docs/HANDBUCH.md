@@ -338,16 +338,43 @@ eine Kontaktmöglichkeit ein, dann erzeugt der Knopf **Texte erzeugen** im Gewin
 Damit Teilnehmer die ausführliche Fassung auch aufrufen können, brauchst du eine
 öffentliche Adresse — die kostet aber nichts:
 
-1. Auf GitHub ein neues öffentliches Repository anlegen, z. B. `gewinnspiele`
-2. Unter **Settings → Pages** die Veröffentlichung einschalten
-3. Im Tool auf **Seite für GitHub erzeugen** — die Datei landet im Ordner
-   `veroeffentlichung`
-4. Auf GitHub **Add file → Upload files**, Datei hineinziehen, **Commit changes**
-5. Die Adresse unter **Einstellungen** eintragen, dann baut das Tool den Link
+1. Auf GitHub ein neues **öffentliches** Repository anlegen, z. B. `gewinnspiele`
+2. Im Tool unter **Einstellungen** auf **Übersichtsseite erzeugen** — dabei
+   entsteht `index.html` im Ordner `veroeffentlichung`
+3. Auf GitHub **Add file → Upload files**, `index.html` hineinziehen,
+   **Commit changes**
+4. **Erst jetzt**: **Settings → Pages**, als Quelle Branch `main` und Ordner
+   `/ (root)` wählen, **Save**
+5. Nach ein bis zwei Minuten ist die Adresse erreichbar
+6. Die Adresse unter **Einstellungen** eintragen, dann baut das Tool den Link
    für den Beitrag automatisch
+7. Ab dann bei jedem Gewinnspiel auf **Seite für GitHub erzeugen** und die
+   erzeugte Datei hochladen — `index.html` schreibt das Tool jedes Mal mit,
+   lade sie einfach zusammen mit hoch
+
+> **Warum Schritt 3 vor Schritt 4 kommt:** Ein leeres Repository hat noch keinen
+> Branch, den GitHub Pages als Quelle anbieten könnte — die Auswahl bleibt grau.
+> Sobald die erste Datei drin liegt, lässt sich Pages einschalten.
+
+Heißt dein Konto `TNIllumination` und das Repository `gewinnspiele`, lautet die
+Adresse `https://tnillumination.github.io/gewinnspiele`. **Kleingeschrieben**,
+auch wenn dein Kontoname Großbuchstaben hat — das ist die häufigste Stolperstelle
+beim Abtippen.
 
 Lade zweimal hoch: vor dem Start mit den Bedingungen, nach der Ziehung mit dem
 Ergebnis. Gleicher Dateiname, gleiche Adresse — der Link im Beitrag bleibt gültig.
+
+### Impressum
+
+Die veröffentlichten Seiten sind ein von dir betriebenes Online-Angebot. Sobald
+du damit geschäftlich auftrittst — und Reichweite für deinen Kanal zählt dazu —
+braucht es ein **Impressum** (§ 5 DDG): leicht erkennbar, unmittelbar erreichbar,
+ständig verfügbar. Für eine rein private Verlosung im Freundeskreis gilt das nicht.
+
+Trag die Adresse unter **Einstellungen → Adresse deines Impressums** ein. Sie
+erscheint dann automatisch im Fußbereich jeder erzeugten Seite, in den
+ausführlichen Teilnahmebedingungen und in der Kurzfassung für den Beitrag. Fehlt
+`https://`, ergänzt das Tool es beim Speichern — sonst wäre der Link tot.
 
 Auf der Seite stehen nach der Ziehung auch Prüfsumme, Zufallszahl und die
 vollständige Teilnehmerliste. **Erst dadurch kann jemand die Ziehung wirklich

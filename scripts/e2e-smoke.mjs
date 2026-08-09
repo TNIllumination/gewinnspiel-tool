@@ -16,7 +16,11 @@ function fail(label, detail) {
   process.exitCode = 1;
 }
 
-const browser = await chromium.launch();
+// Auf manchen Rechnern liegt Chromium nicht dort, wo Playwright es erwartet.
+// CHROMIUM_PFAD zeigt dann direkt auf die Programmdatei.
+const browser = await chromium.launch(
+  process.env.CHROMIUM_PFAD ? { executablePath: process.env.CHROMIUM_PFAD } : {},
+);
 const page = await browser.newPage();
 page.setDefaultTimeout(20000);
 
@@ -33,12 +37,20 @@ try {
 
   // 2. Gewinnspiel anlegen (Testmodus)
   await page.fill('input[name="title"]', "Rauchtest-Verlosung");
-  await page.selectOption('select[name="platform"]', "SANDBOX");
+  // Seit 0.3.0 sind Plattformen Kästchen, kein Auswahlfeld — der Testmodus
+  // ist voreingestellt.
+  await page.check('input[name="platform_SANDBOX"]');
   await page.fill('input[name="substituteCount"]', "5");
   await page.getByRole("button", { name: "Anlegen" }).click();
   await page.waitForURL(/\/admin\/[a-z0-9]+$/);
-  const giveawayUrl = page.url();
-  ok("Gewinnspiel angelegt", giveawayUrl.split("/").pop());
+  // Bei wiederholten Läufen hängt an der Adresse eine Nummer — sonst prüft
+  // der Test ein altes Gewinnspiel und meldet Fehler, die keine sind.
+  const slug = (await page
+    .getByRole("link", { name: "Öffentliche Seite" })
+    .getAttribute("href"))
+    ?.split("/")
+    .pop();
+  ok("Gewinnspiel angelegt", slug);
 
   // 3. Teilnahmen erzeugen
   await page.getByRole("button", { name: /Testteilnehmer erzeugen/ }).click();
@@ -102,7 +114,6 @@ try {
   else ok("Liste festgeschrieben", `Hash ${commitHash.slice(0, 16)}…`);
 
   // Der Seed darf VOR der Ziehung öffentlich nicht sichtbar sein.
-  const slug = "rauchtest-verlosung";
   const publicPage = await browser.newPage();
   await publicPage.goto(`${BASE}/gewinnspiel/${slug}`);
   const beforeText = await publicPage.innerText("body");
@@ -128,29 +139,34 @@ try {
   ok("Gezogen", `1 Gewinner + ${candidates} Nachrücker`);
 
   // 8. Ersten Kandidaten ablehnen → Nachrücker muss nachziehen
-  const firstWinnerName = (await page.locator("li a[href]").first().innerText()).trim();
-  await page.locator("li").filter({ hasText: "Gewinner —" }).first()
-    .getByRole("button", { name: "Prüfung speichern" }).click();
+  // Die Übersicht oben nennt, wer gerade auf dem 1. Platz steht.
+  const platz1 = () => page.locator("div.border-emerald-300").first();
+  const vorher = (await platz1().innerText()).trim();
+
+  const pruefliste = () =>
+    page.locator("section").filter({ hasText: "Gewinner prüfen" }).last();
+  await pruefliste().locator("li").filter({ hasText: "1. Platz —" }).first()
+    .getByRole("button", { name: "Ablehnen" }).click();
   await page.waitForTimeout(3000);
   await page.reload();
   await page.waitForFunction(
-    () => document.body.innerText.includes("Durchgefallen"),
+    () => document.body.innerText.includes("Abgelehnt"),
     null,
     { timeout: 30000 },
   );
 
-  const noticeText = await page.locator("text=Aktueller Gewinner").first().innerText();
-  if (noticeText.includes(firstWinnerName)) {
-    fail("Nachrücker-Automatik", "abgelehnter Kandidat gilt weiterhin als Gewinner");
+  const nachher = (await platz1().innerText()).trim();
+  if (nachher === vorher) {
+    fail("Nachrücker-Automatik", "abgelehnter Kandidat steht weiterhin auf Platz 1");
+  } else if (!nachher.includes("Nachgerückt")) {
+    fail("Nachrücker-Automatik", `kein Nachrücken erkennbar: ${nachher.replace(/\s+/g, " ")}`);
   } else {
-    ok("Nachrücker-Automatik greift", noticeText.replace(/\s+/g, " ").trim());
+    ok("Nachrücker-Automatik greift", nachher.replace(/\s+/g, " ").trim());
   }
 
-  // 9. Nachrücker bestätigen
-  const pendingCard = page.locator("li").filter({ hasText: "Nachrücker 1" }).first();
-  await pendingCard.locator('input[name="follows"]').check();
-  await pendingCard.locator('input[name="liked"]').check();
-  await pendingCard.getByRole("button", { name: "Prüfung speichern" }).click();
+  // 9. Den Nachgerückten bestätigen
+  await pruefliste().locator("li").filter({ hasText: "1. Platz —" }).first()
+    .getByRole("button", { name: "Bestätigen" }).click();
   await page.waitForTimeout(3000);
   await page.reload();
   await page.waitForFunction(
