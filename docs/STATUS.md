@@ -45,8 +45,11 @@
 
 ## Offen / zu beachten
 
-- **Repo-Anlage**: Das GitHub-Token dieser Sitzung darf keine Repositories anlegen
-  (403). Das Repo muss einmalig von Hand angelegt werden, danach läuft das Pushen.
+- **Aufzuräumen**: Solange dieses Repo noch nicht existierte, lag eine Sicherungskopie
+  im Branch `claude/social-media-giveaway-picker-fecfse` von `TNIllumination/TruthorDare`.
+  Sie wird nicht mehr gebraucht. Der Git-Proxy dieser Sitzung lässt das Löschen von
+  Branches nicht zu — bitte einmalig auf GitHub entfernen
+  (Branches → Papierkorb-Symbol).
 - **Login**: Statt Auth.js ist eine schlanke Cookie-Session mit `jose` vorgesehen —
   bei genau einem Benutzer ist das weniger fehleranfällig als ein volles Auth-Framework.
 - **Instagram** braucht ein Meta App Review (1–4 Wochen). Phase 1 funktioniert
