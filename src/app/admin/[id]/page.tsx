@@ -6,8 +6,10 @@ import { getPlatform, type PlatformId } from "@/platforms/base";
 import type { Rejection } from "@/rules/engine";
 import { RULE_LABELS } from "@/rules/types";
 import { describeRules } from "@/rules/summary";
+import { prizeIdForSlot, resolveWinners } from "@/draw/promotion";
 import {
   addPrize,
+  buildTexts,
   clearEntries,
   commitEntrants,
   completeGiveaway,
@@ -16,11 +18,14 @@ import {
   importSandbox,
   performDraw,
   previewManualImport,
+  publishPage,
+  releaseCommit,
   saveRules,
   submitVerification,
 } from "../actions";
 import { ActionForm } from "@/components/action-form";
 import { ManualImport } from "@/components/manual-import";
+import { TextePanel } from "@/components/texte-panel";
 import {
   Badge,
   Card,
@@ -33,6 +38,13 @@ import {
   inputClass,
 } from "@/components/ui";
 
+/// Wandelt ein Datum in den Wert, den <input type="datetime-local"> erwartet.
+function toLocalInput(value: Date | null | undefined) {
+  if (!value) return "";
+  const offset = value.getTimezoneOffset() * 60_000;
+  return new Date(value.getTime() - offset).toISOString().slice(0, 16);
+}
+
 export default async function GiveawayPage({
   params,
 }: {
@@ -44,6 +56,7 @@ export default async function GiveawayPage({
   const giveaway = await db.giveaway.findUnique({
     where: { id },
     include: {
+      sources: { orderBy: { platform: "asc" } },
       rules: { orderBy: { position: "asc" } },
       prizes: { orderBy: { rank: "asc" } },
       draws: {
@@ -61,15 +74,26 @@ export default async function GiveawayPage({
 
   if (!giveaway) notFound();
 
-  const platform = getPlatform(giveaway.platform as PlatformId);
   const currentDraw = giveaway.draws[0];
+  const isSandbox = giveaway.sources.some((s) => s.platform === "SANDBOX");
+  const importPlatforms = giveaway.sources
+    .filter((s) => s.platform !== "SANDBOX")
+    .map((s) => ({
+      id: s.platform,
+      label: getPlatform(s.platform as PlatformId).label,
+    }));
 
-  const [total, valid, lotsAgg] = await Promise.all([
+  const [total, valid, lotsAgg, perPlatform] = await Promise.all([
     db.entry.count({ where: { giveawayId: id } }),
     db.entry.count({ where: { giveawayId: id, valid: true } }),
     db.entry.aggregate({
       where: { giveawayId: id, valid: true },
       _sum: { lots: true },
+    }),
+    db.entry.groupBy({
+      by: ["platform"],
+      where: { giveawayId: id },
+      _count: { _all: true },
     }),
   ]);
 
@@ -85,8 +109,31 @@ export default async function GiveawayPage({
 
   const beforeCommit = giveaway.status === "COLLECTING" || giveaway.status === "DRAFT";
 
-  // Wirksamer Gewinner: der niedrigste Rang, der nicht durchgefallen ist.
-  const effectiveWinner = currentDraw?.results.find((r) => r.status !== "REJECTED");
+  // Wer belegt aktuell welchen Gewinnplatz? Nachrücker erben den Platz des
+  // Abgelehnten — und damit dessen Gewinn, nicht irgendeinen.
+  const resolved = currentDraw
+    ? resolveWinners(
+        currentDraw.results.map((r) => ({
+          id: r.id,
+          rank: r.rank,
+          status: r.status,
+          prizeId: r.prizeId,
+        })),
+        currentDraw.winnerSlots,
+      )
+    : null;
+
+  const resultById = new Map((currentDraw?.results ?? []).map((r) => [r.id, r]));
+  const prizeById = new Map(giveaway.prizes.map((p) => [p.id, p]));
+  const winnerSlotOf = new Map<string, number>();
+  resolved?.winners.forEach((w) => {
+    if (w.candidate) winnerSlotOf.set(w.candidate.id, w.slot);
+  });
+
+  const allConfirmed =
+    resolved !== null &&
+    resolved.winners.length > 0 &&
+    resolved.winners.every((w) => w.candidate?.status === "CONFIRMED");
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 px-4 py-10">
@@ -94,20 +141,9 @@ export default async function GiveawayPage({
         title={giveaway.title}
         subtitle={
           <>
-            {platform.label}
-            {giveaway.postUrl ? (
-              <>
-                {" · "}
-                <a
-                  className="underline hover:no-underline"
-                  href={giveaway.postUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Beitrag öffnen
-                </a>
-              </>
-            ) : null}
+            {giveaway.sources
+              .map((s) => getPlatform(s.platform as PlatformId).label)
+              .join(" + ")}
             {" · "}
             <Link className="underline hover:no-underline" href={`/gewinnspiel/${giveaway.slug}`}>
               Öffentliche Seite
@@ -117,9 +153,24 @@ export default async function GiveawayPage({
         back={{ href: "/admin", label: "Alle Gewinnspiele" }}
       />
 
-      <Notice title={`Was ${platform.label} hergibt — und was nicht`}>
-        {platform.capabilities.notes}
-      </Notice>
+      {giveaway.sources
+        .filter((s) => s.platform !== "SANDBOX")
+        .map((s) => {
+          const platform = getPlatform(s.platform as PlatformId);
+          return (
+            <Notice key={s.id} title={`Was ${platform.label} hergibt — und was nicht`}>
+              {platform.capabilities.notes}
+              {s.postUrl ? (
+                <>
+                  {" "}
+                  <a className="underline" href={s.postUrl} target="_blank" rel="noreferrer">
+                    Beitrag öffnen
+                  </a>
+                </>
+              ) : null}
+            </Notice>
+          );
+        })}
 
       <div className="grid gap-4 sm:grid-cols-4">
         <Stat label="Kommentare" value={total} />
@@ -128,37 +179,50 @@ export default async function GiveawayPage({
         <Stat label="Lose" value={lotsAgg._sum.lots ?? 0} />
       </div>
 
+      {perPlatform.length > 1 ? (
+        <p className="text-sm text-slate-600">
+          Herkunft:{" "}
+          {perPlatform
+            .map(
+              (p) =>
+                `${getPlatform(p.platform as PlatformId).label}: ${p._count._all}`,
+            )
+            .join(" · ")}
+        </p>
+      ) : null}
+
       {/* ── Teilnahmen einlesen ───────────────────────────────────────── */}
       {beforeCommit ? (
         <Card>
-          <CardTitle
-            hint={
-              platform.capabilities.needsManualImport
-                ? "Diese Plattform gibt Kommentare nicht über eine Schnittstelle heraus — deshalb hier einfügen."
-                : "Kommentare einlesen."
-            }
-          >
+          <CardTitle hint="Kommentare einlesen — bei TikTok und Instagram in Etappen.">
             Teilnahmen einlesen
           </CardTitle>
 
-          {giveaway.platform === "SANDBOX" ? (
-            <ActionForm
-              action={importSandbox.bind(null, id)}
-              submitLabel="250 Testteilnehmer erzeugen"
-              variant="secondary"
-            >
-              <p className="text-sm text-slate-600">
-                Erzeugt erfundene Teilnehmer, davon absichtlich einige, die die Regeln
-                nicht erfüllen — so siehst du, wie die Prüfung begründet ablehnt.
-              </p>
-            </ActionForm>
-          ) : (
+          {isSandbox ? (
+            <div className="mb-6">
+              <ActionForm
+                action={importSandbox.bind(null, id)}
+                submitLabel="250 Testteilnehmer erzeugen"
+                variant="secondary"
+              >
+                <p className="text-sm text-slate-600">
+                  Erzeugt erfundene Teilnehmer, davon absichtlich einige, die die Regeln
+                  nicht erfüllen — so siehst du, wie die Prüfung begründet ablehnt.
+                </p>
+              </ActionForm>
+            </div>
+          ) : null}
+
+          {importPlatforms.length > 0 ? (
             <ManualImport
               preview={previewManualImport}
-              confirm={confirmManualImport.bind(null, id)}
-              platformLabel={platform.label}
+              confirm={confirmManualImport.bind(null, id) as (
+                platform: string,
+                raw: string,
+              ) => ReturnType<typeof confirmManualImport>}
+              platforms={importPlatforms}
             />
-          )}
+          ) : null}
 
           {total > 0 ? (
             <div className="mt-6 border-t border-slate-200 pt-4">
@@ -194,14 +258,35 @@ export default async function GiveawayPage({
               ).map((line, i) => (
                 <li key={i}>{line}</li>
               ))}
+              {giveaway.sources.filter((s) => s.platform !== "SANDBOX").length > 1 ? (
+                <li>Wer auf mehreren Plattformen kommentiert, ist mehrfach im Topf.</li>
+              ) : null}
             </ul>
           </div>
 
           <ActionForm action={saveRules.bind(null, id)} submitLabel="Regeln speichern & prüfen">
             <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Start" hint="Frühere Kommentare zählen nicht.">
+                <input
+                  className={inputClass}
+                  type="datetime-local"
+                  name="startsAt"
+                  defaultValue={toLocalInput(giveaway.startsAt)}
+                />
+              </Field>
+
+              <Field label="Einsendeschluss" hint="Spätere Kommentare zählen nicht.">
+                <input
+                  className={inputClass}
+                  type="datetime-local"
+                  name="endsAt"
+                  defaultValue={toLocalInput(giveaway.endsAt)}
+                />
+              </Field>
+
               <Field
                 label="Diese Wörter müssen vorkommen"
-                hint="Mit Komma trennen. „Grüße“, „gruesse“ und „grusse“ gelten als dasselbe."
+                hint="Mit Komma trennen. „Grüße“, „gruesse“ und „grusse“ gelten als dasselbe. Mehrfach genannt bringt keinen Vorteil."
               >
                 <input
                   className={inputClass}
@@ -244,7 +329,7 @@ export default async function GiveawayPage({
                 />
               </Field>
 
-              <Field label="Mehrfachteilnahme">
+              <Field label="Mehrfachteilnahme" hint="Gilt je Plattform.">
                 <select
                   className={inputClass}
                   name="dedupeMode"
@@ -311,7 +396,12 @@ export default async function GiveawayPage({
               <ul className="space-y-2">
                 {rejectedSample.map((entry) => (
                   <li key={entry.id} className="rounded-lg bg-slate-50 px-3 py-2 text-sm">
-                    <p className="font-medium text-slate-800">@{entry.username}</p>
+                    <p className="font-medium text-slate-800">
+                      @{entry.username}
+                      <span className="ml-2 text-xs font-normal text-slate-500">
+                        {getPlatform(entry.platform as PlatformId).label}
+                      </span>
+                    </p>
                     <p className="text-slate-600">{entry.text}</p>
                     <ul className="mt-1 space-y-0.5">
                       {(entry.rejections as unknown as Rejection[]).map((r, i) => (
@@ -330,7 +420,7 @@ export default async function GiveawayPage({
 
       {/* ── Gewinne ──────────────────────────────────────────────────── */}
       <Card>
-        <CardTitle hint="Der erste Gewinn geht an den Hauptgewinner, weitere an die folgenden Ränge.">
+        <CardTitle hint="Für jeden Gewinn wird ein eigener Gewinner gezogen — Nachrücker kommen zusätzlich.">
           Gewinne
         </CardTitle>
 
@@ -349,30 +439,46 @@ export default async function GiveawayPage({
                     <p className="text-xs text-slate-600">{prize.description}</p>
                   ) : null}
                 </div>
-                <ActionForm
-                  action={deletePrize.bind(null, prize.id)}
-                  submitLabel="Entfernen"
-                  variant="danger"
-                  className="[&>button]:mt-0"
-                />
+                {beforeCommit ? (
+                  <ActionForm
+                    action={deletePrize.bind(null, prize.id)}
+                    submitLabel="Entfernen"
+                    variant="danger"
+                    className="[&>button]:mt-0"
+                  />
+                ) : null}
               </li>
             ))}
           </ul>
         ) : null}
 
-        <ActionForm action={addPrize.bind(null, id)} submitLabel="Gewinn hinzufügen" variant="secondary">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Name">
-              <input className={inputClass} name="prizeTitle" required placeholder="Signiertes Shirt" />
-            </Field>
-            <Field label="Beschreibung">
-              <input className={inputClass} name="prizeDescription" />
-            </Field>
-            <Field label="Bild-URL">
-              <input className={inputClass} name="prizeImageUrl" placeholder="https://…" />
-            </Field>
-          </div>
-        </ActionForm>
+        {beforeCommit ? (
+          <ActionForm action={addPrize.bind(null, id)} submitLabel="Gewinn hinzufügen" variant="secondary">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="Name">
+                <input className={inputClass} name="prizeTitle" required placeholder="Signiertes Shirt" />
+              </Field>
+              <Field label="Beschreibung">
+                <input className={inputClass} name="prizeDescription" />
+              </Field>
+              <Field label="Bild-URL">
+                <input className={inputClass} name="prizeImageUrl" placeholder="https://…" />
+              </Field>
+            </div>
+          </ActionForm>
+        ) : null}
+      </Card>
+
+      {/* ── Texte und Veröffentlichung ───────────────────────────────── */}
+      <Card>
+        <CardTitle hint="Für den Beitrag und für die öffentliche Seite auf GitHub.">
+          Teilnahmebedingungen und Nachweis
+        </CardTitle>
+        <TextePanel
+          texte={buildTexts.bind(null, id)}
+          veroeffentlichen={publishPage.bind(null, id)}
+          slug={giveaway.slug}
+        />
       </Card>
 
       {/* ── Ziehung ──────────────────────────────────────────────────── */}
@@ -385,15 +491,15 @@ export default async function GiveawayPage({
           <>
             <div className="mb-4">
               <Notice title="Schritt 1: Liste festschreiben">
-                Die Teilnehmerliste wird eingefroren und zu einem Hash verrechnet, den du
-                <strong> vor </strong>der Ziehung veröffentlichst. Danach lässt sich nichts
-                mehr unbemerkt ändern — und genau das kannst du hinterher beweisen.
+                Die Teilnehmerliste wird eingefroren und zu einer Prüfsumme verrechnet,
+                die du <strong>vor</strong> der Ziehung veröffentlichst. Danach lässt sich
+                nichts mehr unbemerkt ändern — und genau das kannst du hinterher beweisen.
               </Notice>
             </div>
             <ActionForm
               action={commitEntrants.bind(null, id)}
               submitLabel={`${valid} Teilnahmen festschreiben`}
-              confirm="Danach können keine Teilnahmen mehr hinzukommen oder Regeln geändert werden. Fortfahren?"
+              confirm="Danach können keine Teilnahmen mehr hinzukommen. Zurücknehmen geht nur, solange nicht gezogen wurde. Fortfahren?"
             />
           </>
         ) : null}
@@ -408,15 +514,32 @@ export default async function GiveawayPage({
                 {currentDraw.commitHash}
               </p>
               <p className="mt-2 text-sm text-slate-600">
-                {currentDraw.entrantCount} Teilnehmer · {currentDraw.totalLots} Lose ·
-                festgeschrieben {formatDateTime(currentDraw.committedAt)}
+                {currentDraw.entrantCount} Teilnehmer · {currentDraw.totalLots} Lose ·{" "}
+                {currentDraw.winnerSlots} Gewinnplatz
+                {currentDraw.winnerSlots === 1 ? "" : "ätze"} · festgeschrieben{" "}
+                {formatDateTime(currentDraw.committedAt)}
               </p>
             </div>
+
             <ActionForm
               action={performDraw.bind(null, id)}
-              submitLabel={`Jetzt ziehen (1 Gewinner + ${giveaway.substituteCount} Nachrücker)`}
+              submitLabel={`Jetzt ziehen (${currentDraw.winnerSlots} Gewinner + ${giveaway.substituteCount} Nachrücker)`}
               variant="success"
             />
+
+            <div className="border-t border-slate-200 pt-4">
+              <ActionForm
+                action={releaseCommit.bind(null, id)}
+                submitLabel="Festschreibung zurücknehmen"
+                variant="secondary"
+                confirm="Die eingefrorene Liste wird aufgelöst, damit du weitere Kommentare einlesen kannst. Fortfahren?"
+              >
+                <p className="text-sm text-slate-600">
+                  Fehlen noch Kommentare? Solange nicht gezogen wurde, kannst du die
+                  Liste wieder auflösen und nachträglich importieren.
+                </p>
+              </ActionForm>
+            </div>
           </div>
         ) : null}
 
@@ -437,48 +560,74 @@ export default async function GiveawayPage({
       </Card>
 
       {/* ── Verifikation ─────────────────────────────────────────────── */}
-      {currentDraw?.drawnAt ? (
+      {currentDraw?.drawnAt && resolved ? (
         <Card>
-          <CardTitle
-            hint={
-              platform.capabilities.canCheckFollow
-                ? "Diese Plattform beantwortet den Follow-Check automatisch."
-                : "Folgen und Likes gibt keine Schnittstelle heraus — hier prüfst du nur diese wenigen Personen von Hand."
-            }
-          >
+          <CardTitle hint="Folgen und Liken gibt keine Plattform heraus. Du entscheidest — das Tool verlangt keine Häkchen für Ungeprüftes.">
             Gewinner prüfen
           </CardTitle>
 
-          {effectiveWinner ? (
-            <div className="mb-4">
-              <Notice title={`Aktueller Gewinner: @${effectiveWinner.entry.username}`}>
-                {effectiveWinner.rank === 0
-                  ? "Direkt gezogen."
-                  : `Nachgerückt von Platz ${effectiveWinner.rank + 1}, weil die davor durchgefallen sind.`}
-              </Notice>
-            </div>
-          ) : (
-            <div className="mb-4">
-              <Notice title="Alle Kandidaten sind durchgefallen" tone="warn">
-                Erhöhe die Zahl der Nachrücker oder ziehe neu.
-              </Notice>
-            </div>
-          )}
+          <div className="mb-4 space-y-2">
+            {resolved.winners.map((w) => {
+              const result = w.candidate ? resultById.get(w.candidate.id) : null;
+              // Der Gewinn hängt am Platz — wer nachrückt, erbt ihn.
+              const prize = prizeById.get(
+                prizeIdForSlot(
+                  currentDraw.results.map((r) => ({
+                    id: r.id,
+                    rank: r.rank,
+                    status: r.status,
+                    prizeId: r.prizeId,
+                  })),
+                  w.slot,
+                ) ?? "",
+              );
+              return (
+                <div
+                  key={w.slot}
+                  className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3"
+                >
+                  <p className="text-sm font-semibold text-emerald-900">
+                    {w.slot + 1}. Platz
+                    {prize ? ` — ${prize.title}` : ""}
+                  </p>
+                  <p className="mt-1 text-lg font-bold text-slate-900">
+                    {result ? `@${result.entry.username}` : "— noch offen —"}
+                  </p>
+                  {w.promoted ? (
+                    <p className="text-xs text-emerald-800">
+                      Nachgerückt, weil die davor durchgefallen sind.
+                    </p>
+                  ) : null}
+                  {!result ? (
+                    <p className="text-xs text-amber-800">
+                      Alle Kandidaten durchgefallen — erhöhe die Nachrücker oder ziehe neu.
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
 
           <ul className="space-y-3">
             {currentDraw.results.map((result) => {
-              const isWinnerSlot = result.id === effectiveWinner?.id;
+              const slot = winnerSlotOf.get(result.id);
+              const istGewinner = slot !== undefined;
+              const platform = getPlatform(result.entry.platform as PlatformId);
+
               return (
                 <li
                   key={result.id}
                   className={`rounded-lg border p-4 ${
-                    isWinnerSlot ? "border-emerald-400 bg-emerald-50" : "border-slate-200"
+                    istGewinner ? "border-emerald-400 bg-emerald-50/50" : "border-slate-200"
                   }`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="font-medium">
-                        {result.rank === 0 ? "Gewinner" : `Nachrücker ${result.rank}`} —{" "}
+                        {istGewinner
+                          ? `${slot + 1}. Platz`
+                          : `Nachrücker ${result.rank - currentDraw.winnerSlots + 1}`}{" "}
+                        —{" "}
                         <a
                           className="underline hover:no-underline"
                           href={platform.profileUrl(result.entry.username)}
@@ -487,51 +636,52 @@ export default async function GiveawayPage({
                         >
                           @{result.entry.username}
                         </a>
+                        <span className="ml-2 text-xs font-normal text-slate-500">
+                          {platform.label}
+                        </span>
                       </p>
                       <p className="mt-1 text-sm text-slate-600">{result.entry.text}</p>
                       <p className="mt-1 text-xs text-slate-500">
                         {result.entry.lots} Los(e) · {formatDateTime(result.entry.commentedAt)}
-                        {result.prize ? ` · Gewinn: ${result.prize.title}` : ""}
                       </p>
                     </div>
 
                     {result.status === "CONFIRMED" ? (
                       <Badge tone="good">Bestätigt</Badge>
                     ) : result.status === "REJECTED" ? (
-                      <Badge tone="bad">Durchgefallen</Badge>
+                      <Badge tone="bad">Abgelehnt</Badge>
                     ) : (
                       <Badge tone="warn">Offen</Badge>
                     )}
                   </div>
 
                   {result.status === "PENDING" ? (
-                    <ActionForm
-                      action={submitVerification.bind(null, result.id)}
-                      submitLabel="Prüfung speichern"
-                      variant="secondary"
-                      className="mt-3"
-                    >
-                      <div className="flex flex-wrap items-center gap-4 text-sm">
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" name="follows" className="size-4" />
-                          folgt mir
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input type="checkbox" name="liked" className="size-4" />
-                          hat geliked
-                        </label>
+                    <div className="mt-3 flex flex-wrap items-end gap-3">
+                      <ActionForm
+                        action={submitVerification.bind(null, result.id, true)}
+                        submitLabel="Bestätigen"
+                        variant="success"
+                        className="[&>button]:mt-0"
+                      >
+                        <input type="hidden" name="note" value="" />
+                      </ActionForm>
+                      <ActionForm
+                        action={submitVerification.bind(null, result.id, false)}
+                        submitLabel="Ablehnen"
+                        variant="danger"
+                        className="[&>button]:mt-0"
+                        confirm="Diesen Kandidaten ablehnen? Der nächste Nachrücker erbt diesen Platz."
+                      >
                         <input
                           className={`${inputClass} max-w-xs`}
                           name="note"
-                          placeholder="Notiz (optional)"
+                          placeholder="Grund (optional)"
                         />
-                      </div>
-                    </ActionForm>
+                      </ActionForm>
+                    </div>
                   ) : result.verification ? (
                     <p className="mt-2 text-xs text-slate-500">
-                      Geprüft {formatDateTime(result.verification.checkedAt)} · folgt:{" "}
-                      {result.verification.follows ? "ja" : "nein"} · geliked:{" "}
-                      {result.verification.liked ? "ja" : "nein"}
+                      Geprüft {formatDateTime(result.verification.checkedAt)}
                       {result.verification.note ? ` · ${result.verification.note}` : ""}
                     </p>
                   ) : null}
@@ -540,7 +690,7 @@ export default async function GiveawayPage({
             })}
           </ul>
 
-          {giveaway.status !== "COMPLETED" && effectiveWinner?.status === "CONFIRMED" ? (
+          {giveaway.status !== "COMPLETED" && allConfirmed ? (
             <div className="mt-6 border-t border-slate-200 pt-4">
               <ActionForm
                 action={completeGiveaway.bind(null, id)}

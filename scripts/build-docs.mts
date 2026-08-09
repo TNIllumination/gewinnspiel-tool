@@ -66,9 +66,10 @@ const page = `<!doctype html>
   ul.inhalt ul li { font-weight: 400; font-size: .95rem; }
   ul.inhalt a { text-decoration: none; }
   ul.inhalt a:hover { text-decoration: underline; }
-  .rueck { float: right; font-size: .8rem; text-decoration: none; opacity: .35;
-           font-weight: 400; }
-  .rueck:hover { opacity: 1; }
+  .rueck { float: right; font-size: .8rem; text-decoration: none; font-weight: 400;
+           color: #64748b; padding: .35rem .6rem; border-radius: 6px;
+           background: #eef2f7; white-space: nowrap; }
+  .rueck:hover { background: #dbe3ec; color: #1e293b; }
   @media (prefers-color-scheme: dark) {
     body { color: #e2e8f0; background: #0f172a; }
     h2 { border-top-color: #334155; }
@@ -83,7 +84,7 @@ const page = `<!doctype html>
 </head>
 <body>
 
-<div class="kopf">
+<div class="kopf" id="seitenanfang">
   <h1>Gewinnspiel-Tool</h1>
   <p>Handbuch zur Fassung ${version}</p>
 </div>

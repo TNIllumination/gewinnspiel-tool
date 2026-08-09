@@ -13,7 +13,17 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { evaluateEntries, type CommentInput, type RuleSpec } from "@/rules/engine";
+import { entryFingerprint } from "@/rules/text";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { commit, draw, type Entrant } from "@/draw/commit-reveal";
+import { prizeIdForSlot, resolveWinners } from "@/draw/promotion";
+import {
+  buildProofText,
+  buildShortTerms,
+  buildTerms,
+} from "@/legal/teilnahmebedingungen";
+import { buildPublishPage, type PublishInput } from "@/legal/publish";
 import { parseManualImport } from "@/platforms/manual-import";
 import { generateSandboxComments } from "@/platforms/sandbox";
 import type { PlatformId } from "@/platforms/base";
@@ -71,14 +81,26 @@ export async function logout() {
 
 // ── Gewinnspiele ─────────────────────────────────────────────────────────────
 
+const ALL_PLATFORMS: PlatformId[] = [
+  "SANDBOX",
+  "INSTAGRAM",
+  "TIKTOK",
+  "YOUTUBE",
+];
+
 export async function createGiveaway(formData: FormData) {
   const userId = await requireUser();
 
   const title = String(formData.get("title") ?? "").trim();
-  const platform = String(formData.get("platform") ?? "SANDBOX") as PlatformId;
   const substituteCount = Number(formData.get("substituteCount") ?? 5);
 
+  // Ein Gewinnspiel läuft in der Regel über mehrere Plattformen.
+  const platforms = ALL_PLATFORMS.filter((p) => formData.get(`platform_${p}`) === "on");
+
   if (title.length < 3) fail("Der Titel muss mindestens 3 Zeichen lang sein.");
+  if (platforms.length === 0) {
+    fail("Bitte mindestens eine Plattform auswählen.");
+  }
 
   // Slug eindeutig machen, ohne dem Nutzer einen Fehler zuzumuten.
   const base = slugify(title);
@@ -91,12 +113,18 @@ export async function createGiveaway(formData: FormData) {
     data: {
       title,
       slug,
-      platform,
       substituteCount: Math.min(Math.max(substituteCount, 0), 50),
-      postUrl: String(formData.get("postUrl") ?? "").trim() || null,
+      startsAt: parseLocalDate(formData.get("startsAt")),
+      endsAt: parseLocalDate(formData.get("endsAt")),
       status: "COLLECTING",
+      sources: {
+        create: platforms.map((platform) => ({
+          platform,
+          postUrl: String(formData.get(`postUrl_${platform}`) ?? "").trim() || null,
+        })),
+      },
       rules: {
-        // Sinnvolle Voreinstellung: ein Los pro Person.
+        // Sinnvolle Voreinstellung: ein Los pro Person und Plattform.
         create: [{ type: "DEDUPE", config: { mode: "one_per_user" }, position: 100 }],
       },
     },
@@ -107,7 +135,7 @@ export async function createGiveaway(formData: FormData) {
     entity: "Giveaway",
     entityId: giveaway.id,
     actor: userId,
-    detail: { title, platform },
+    detail: { title, platforms },
   });
 
   redirect(`/admin/${giveaway.id}`);
@@ -127,59 +155,96 @@ export async function deleteGiveaway(giveawayId: string) {
 
 // ── Teilnahmen importieren ───────────────────────────────────────────────────
 
-async function storeComments(giveawayId: string, comments: CommentInput[]) {
-  if (comments.length === 0) return 0;
+export interface StoreResult {
+  added: number;
+  skipped: number;
+}
 
-  // Doppelimport derselben Kommentare soll harmlos sein. SQLite kennt kein
-  // skipDuplicates, deshalb wird vorher abgeglichen — gegen die Datenbank
-  // und innerhalb des Stapels selbst.
+/// Speichert Teilnahmen und überspringt, was schon da ist.
+///
+/// Beim Einfügen von Hand gibt es keine Kommentar-ID der Plattform — TikTok
+/// zeigt immer nur einen Ausschnitt, man muss also in Etappen kopieren.
+/// Damit das nicht zu Dubletten führt (und damit zu doppelten Gewinnchancen),
+/// wird zusätzlich über einen Fingerabdruck aus Name und Text abgeglichen.
+async function storeComments(
+  giveawayId: string,
+  platform: PlatformId,
+  comments: CommentInput[],
+): Promise<StoreResult> {
+  if (comments.length === 0) return { added: 0, skipped: 0 };
+
   const stored = await db.entry.findMany({
-    where: { giveawayId, externalId: { not: null } },
-    select: { externalId: true },
+    where: { giveawayId, platform },
+    select: { externalId: true, fingerprint: true },
   });
 
-  const seen = new Set(stored.map((e) => e.externalId));
-  const fresh: CommentInput[] = [];
+  const knownIds = new Set(
+    stored.map((e) => e.externalId).filter((v): v is string => Boolean(v)),
+  );
+  const knownPrints = new Set(
+    stored.map((e) => e.fingerprint).filter((v): v is string => Boolean(v)),
+  );
+
+  const fresh: { comment: CommentInput; fingerprint: string }[] = [];
+  let skipped = 0;
 
   for (const c of comments) {
-    // Kommentare ohne Plattform-ID (Einfuegen von Hand) lassen sich nicht
-    // zuverlaessig abgleichen — sie kommen durch.
-    if (c.externalId) {
-      if (seen.has(c.externalId)) continue;
-      seen.add(c.externalId);
+    const fingerprint = entryFingerprint(c.username, c.text);
+
+    // SQLite kennt kein skipDuplicates — deshalb hier abgleichen, gegen die
+    // Datenbank und innerhalb desselben Stapels.
+    if (
+      (c.externalId && knownIds.has(c.externalId)) ||
+      knownPrints.has(fingerprint)
+    ) {
+      skipped += 1;
+      continue;
     }
-    fresh.push(c);
+
+    if (c.externalId) knownIds.add(c.externalId);
+    knownPrints.add(fingerprint);
+    fresh.push({ comment: c, fingerprint });
   }
 
-  if (fresh.length === 0) return 0;
+  if (fresh.length === 0) return { added: 0, skipped };
 
   const result = await db.entry.createMany({
-    data: fresh.map((c) => ({
+    data: fresh.map(({ comment: c, fingerprint }) => ({
       giveawayId,
+      platform,
       externalId: c.externalId ?? null,
       username: c.username.replace(/^@/, ""),
       userRef: c.userRef ?? null,
       text: c.text,
       commentedAt: c.commentedAt,
       likeCount: c.likeCount ?? 0,
+      fingerprint,
     })),
   });
 
-  return result.count;
+  return { added: result.count, skipped };
+}
+
+/// Wandelt eine Datumsangabe aus dem Formular (YYYY-MM-DDTHH:mm) in ein Datum.
+function parseLocalDate(value: FormDataEntryValue | null): Date | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 export async function importSandbox(giveawayId: string) {
   const userId = await requireUser();
 
   const comments = generateSandboxComments({ count: 250, seed: giveawayId });
-  const added = await storeComments(giveawayId, comments);
+  const { added, skipped } = await storeComments(giveawayId, "SANDBOX", comments);
 
   await audit({
     action: "entries.imported",
     entity: "Giveaway",
     entityId: giveawayId,
     actor: userId,
-    detail: { source: "sandbox", added },
+    detail: { source: "sandbox", added, skipped },
   });
 
   await runEvaluation(giveawayId);
@@ -223,7 +288,14 @@ export async function previewManualImport(
 
 /// Schritt 2: uebernehmen. Erneut geparst, damit nichts aus dem Browser
 /// die gespeicherten Daten bestimmt.
-export async function confirmManualImport(giveawayId: string, raw: string) {
+///
+/// Gibt zurueck, wie viel wirklich neu war — beim Einlesen in Etappen ist
+/// genau das die Information, die man braucht.
+export async function confirmManualImport(
+  giveawayId: string,
+  platform: PlatformId,
+  raw: string,
+): Promise<StoreResult> {
   const userId = await requireUser();
 
   const parsed = parseManualImport(raw);
@@ -231,7 +303,7 @@ export async function confirmManualImport(giveawayId: string, raw: string) {
     fail("Aus der Eingabe ließen sich keine Kommentare lesen.");
   }
 
-  const added = await storeComments(giveawayId, parsed.comments);
+  const result = await storeComments(giveawayId, platform, parsed.comments);
 
   await audit({
     action: "entries.imported",
@@ -240,14 +312,16 @@ export async function confirmManualImport(giveawayId: string, raw: string) {
     actor: userId,
     detail: {
       source: "manual",
+      platform,
       format: parsed.format,
       erkannt: parsed.comments.length,
-      added,
+      ...result,
       warnings: parsed.warnings.length,
     },
   });
 
   await runEvaluation(giveawayId);
+  return result;
 }
 
 export async function clearEntries(giveawayId: string) {
@@ -325,6 +399,30 @@ export async function saveRules(giveawayId: string, formData: FormData) {
     position: 100,
   });
 
+  // Teilnahmezeitraum: Ohne Einsendeschluss zählen verspätete Kommentare mit.
+  const startsAt = parseLocalDate(formData.get("startsAt"));
+  const endsAt = parseLocalDate(formData.get("endsAt"));
+
+  if (startsAt && endsAt && endsAt <= startsAt) {
+    fail("Der Einsendeschluss muss nach dem Start liegen.");
+  }
+
+  await db.giveaway.update({
+    where: { id: giveawayId },
+    data: { startsAt, endsAt },
+  });
+
+  if (startsAt || endsAt) {
+    rules.push({
+      type: "TIMEWINDOW",
+      config: {
+        from: startsAt?.toISOString(),
+        to: endsAt?.toISOString(),
+      },
+      position: 5,
+    });
+  }
+
   await db.$transaction([
     db.rule.deleteMany({ where: { giveawayId } }),
     db.rule.createMany({
@@ -364,12 +462,14 @@ export async function runEvaluation(giveawayId: string) {
 
   const summary = evaluateEntries(
     giveaway.entries.map((e) => ({
+      id: e.id,
       externalId: e.externalId,
       username: e.username,
       userRef: e.userRef,
       text: e.text,
       commentedAt: e.commentedAt,
       likeCount: e.likeCount,
+      platform: e.platform,
     })),
     giveaway.rules.map((r) => ({
       type: r.type,
@@ -380,18 +480,13 @@ export async function runEvaluation(giveawayId: string) {
     { ownerHandle: giveaway.account?.handle ?? null },
   );
 
-  // Zuordnung ueber externalId, ersatzweise Name + Zeitpunkt.
-  const byKey = new Map(
-    summary.entries.map((e) => [
-      e.externalId ?? `${e.username}@${e.commentedAt.getTime()}`,
-      e,
-    ]),
-  );
+  // Zuordnung über die durchgereichte Kennung — eindeutig, auch wenn
+  // derselbe Kommentar auf zwei Plattformen steht.
+  const byId = new Map(summary.entries.map((e) => [e.id, e]));
 
   await db.$transaction(
     giveaway.entries.map((entry) => {
-      const key = entry.externalId ?? `${entry.username}@${entry.commentedAt.getTime()}`;
-      const evaluated = byKey.get(key);
+      const evaluated = byId.get(entry.id);
       return db.entry.update({
         where: { id: entry.id },
         data: {
@@ -427,7 +522,10 @@ export async function commitEntrants(giveawayId: string) {
 
   const giveaway = await db.giveaway.findUniqueOrThrow({
     where: { id: giveawayId },
-    include: { entries: { where: { valid: true } } },
+    include: {
+      entries: { where: { valid: true } },
+      prizes: true,
+    },
   });
 
   if (giveaway.status !== "COLLECTING") {
@@ -437,14 +535,22 @@ export async function commitEntrants(giveawayId: string) {
     fail("Es gibt keine gültigen Teilnahmen. Bitte zuerst importieren und die Regeln prüfen.");
   }
 
+  // Die Plattform gehört in die Referenz — sonst wären @anna von TikTok und
+  // @anna von Instagram in der veröffentlichten Liste nicht unterscheidbar.
   const entrants: Entrant[] = giveaway.entries.map((e) => ({
     id: e.id,
-    username: e.username,
+    username: `${e.username}@${e.platform.toLowerCase()}`,
     lots: e.lots,
-    ref: e.externalId ?? `${e.username}-${e.commentedAt.getTime()}`,
+    ref: e.externalId ?? `${e.platform}-${e.username}-${e.commentedAt.getTime()}`,
   }));
 
   const c = commit(entrants);
+
+  // So viele Gewinnplätze wie Gewinne — mindestens einer.
+  const winnerSlots = Math.max(
+    1,
+    giveaway.prizes.reduce((sum, p) => sum + Math.max(1, p.quantity), 0),
+  );
 
   await db.$transaction([
     db.draw.create({
@@ -456,6 +562,7 @@ export async function commitEntrants(giveawayId: string) {
         entrantsSnapshot: entrants as never,
         entrantCount: c.entrantCount,
         totalLots: c.totalLots,
+        winnerSlots,
       },
     }),
     db.giveaway.update({
@@ -493,7 +600,19 @@ export async function performDraw(giveawayId: string) {
   if (!pending.seed) fail("Der Seed dieser Ziehung fehlt.");
 
   const entrants = pending.entrantsSnapshot as unknown as Entrant[];
-  const outcome = draw(entrants, pending.seed, 1 + giveaway.substituteCount);
+
+  // Erst die Gewinnplätze, danach die Nachrücker. Vorher bekamen Nachrücker
+  // fälschlich Preise zugeteilt, weil Rang 1 gleichzeitig „zweiter Preis"
+  // und „erster Nachrücker" bedeutete.
+  const winnerSlots = pending.winnerSlots;
+  const outcome = draw(entrants, pending.seed, winnerSlots + giveaway.substituteCount);
+
+  // Gewinne der Reihe nach auf die Gewinnplätze verteilen; quantity > 1
+  // belegt entsprechend mehrere Plätze.
+  const prizeBySlot: (string | null)[] = [];
+  for (const prize of giveaway.prizes) {
+    for (let n = 0; n < Math.max(1, prize.quantity); n++) prizeBySlot.push(prize.id);
+  }
 
   await db.$transaction([
     db.drawResult.createMany({
@@ -501,8 +620,8 @@ export async function performDraw(giveawayId: string) {
         drawId: pending.id,
         entryId: w.id,
         rank: index,
-        // Hauptgewinn an Rang 0, weitere Preise an die naechsten Raenge.
-        prizeId: giveaway.prizes[index]?.id ?? null,
+        // Nur Gewinnplätze tragen einen Gewinn — Nachrücker nicht.
+        prizeId: index < winnerSlots ? (prizeBySlot[index] ?? null) : null,
       })),
     }),
     db.draw.update({
@@ -531,15 +650,20 @@ export async function performDraw(giveawayId: string) {
 
 // ── Verifikation von Gewinner und Nachrueckern ───────────────────────────────
 
+/// Bestätigt oder lehnt einen Kandidaten ab.
+///
+/// Folgen und Liken lassen sich über keine Plattform automatisch prüfen.
+/// Deshalb entscheidet hier ausschließlich dein Urteil — das Tool zwingt
+/// niemanden, Häkchen für etwas zu setzen, das er nicht geprüft hat.
+/// `follows`/`liked` bleiben als freiwillige Stichprobe erhalten.
 export async function setVerification(
   drawResultId: string,
-  follows: boolean,
-  liked: boolean,
+  passed: boolean,
+  follows: boolean | null = null,
+  liked: boolean | null = null,
   note?: string,
 ) {
   const userId = await requireUser();
-
-  const passed = follows && liked;
 
   await db.verification.upsert({
     where: { drawResultId },
@@ -570,18 +694,271 @@ export async function setVerification(
   revalidatePath(`/admin/${result.draw.giveawayId}`);
 }
 
-/// Formularvariante der Verifikation — beide Häkchen müssen gesetzt sein,
-/// sonst gilt der Kandidat als durchgefallen und der Nachrücker zieht nach.
+/// Formularvariante: „Bestätigen" oder „Ablehnen" als bewusste Entscheidung.
 export async function submitVerification(
   drawResultId: string,
+  passed: boolean,
   formData: FormData,
 ) {
   await setVerification(
     drawResultId,
-    formData.get("follows") === "on",
-    formData.get("liked") === "on",
+    passed,
+    formData.get("follows") === "on" ? true : null,
+    formData.get("liked") === "on" ? true : null,
     String(formData.get("note") ?? "").trim() || undefined,
   );
+}
+
+/// Nimmt die Festschreibung zurück, solange noch nicht gezogen wurde.
+///
+/// Nach der Ziehung bleibt die Liste unantastbar — sonst wäre der ganze
+/// Nachweis wertlos.
+export async function releaseCommit(giveawayId: string) {
+  const userId = await requireUser();
+
+  const pending = await db.draw.findFirst({
+    where: { giveawayId },
+    orderBy: { committedAt: "desc" },
+  });
+
+  if (!pending) fail("Es gibt keine festgeschriebene Liste.");
+  if (pending.drawnAt) {
+    fail(
+      "Es wurde bereits gezogen. Die Liste bleibt jetzt unverändert — sonst wäre der veröffentlichte Nachweis wertlos.",
+    );
+  }
+
+  await db.$transaction([
+    db.draw.delete({ where: { id: pending.id } }),
+    db.giveaway.update({
+      where: { id: giveawayId },
+      data: { status: "COLLECTING" },
+    }),
+  ]);
+
+  await audit({
+    action: "draw.released",
+    entity: "Giveaway",
+    entityId: giveawayId,
+    actor: userId,
+    detail: { commitHash: pending.commitHash, entrants: pending.entrantCount },
+  });
+
+  revalidatePath(`/admin/${giveawayId}`);
+}
+
+/// Fährt das Tool herunter. Die Antwort geht noch raus, danach endet der
+/// Serverprozess — und mit ihm schließt sich das Konsolenfenster.
+export async function shutdownServer() {
+  const userId = await requireUser();
+
+  await audit({ action: "app.shutdown", entity: "App", actor: userId });
+
+  setTimeout(() => process.exit(0), 700);
+}
+
+// ── Rechtstexte und Veröffentlichung ─────────────────────────────────────────
+
+async function loadForTerms(giveawayId: string) {
+  const giveaway = await db.giveaway.findUniqueOrThrow({
+    where: { id: giveawayId },
+    include: {
+      sources: { orderBy: { platform: "asc" } },
+      prizes: { orderBy: { rank: "asc" } },
+      rules: { orderBy: { position: "asc" } },
+      draws: {
+        orderBy: { committedAt: "desc" },
+        take: 1,
+        include: {
+          results: {
+            orderBy: { rank: "asc" },
+            include: { entry: true, prize: true },
+          },
+        },
+      },
+    },
+  });
+
+  const settings = await db.settings.findUnique({ where: { id: "settings" } });
+
+  return {
+    giveaway,
+    who: {
+      organizer: settings?.organizer ?? "",
+      contact: settings?.contact ?? "",
+      publishBaseUrl: settings?.publishBaseUrl ?? "",
+    },
+    forTerms: {
+      title: giveaway.title,
+      slug: giveaway.slug,
+      description: giveaway.description,
+      startsAt: giveaway.startsAt,
+      endsAt: giveaway.endsAt,
+      substituteCount: giveaway.substituteCount,
+      sources: giveaway.sources.map((s) => ({
+        platform: s.platform,
+        postUrl: s.postUrl,
+      })),
+      prizes: giveaway.prizes.map((p) => ({
+        title: p.title,
+        description: p.description,
+        quantity: p.quantity,
+      })),
+      rules: giveaway.rules.map((r) => ({
+        type: r.type,
+        config: r.config,
+        enabled: r.enabled,
+      })),
+    },
+  };
+}
+
+export interface TextsResult {
+  lang: string;
+  kurz: string;
+  kurzLaenge: number;
+  kurzPasst: boolean;
+  nachweis: string | null;
+}
+
+/// Liefert Teilnahmebedingungen (lang und kurz) sowie den Nachweis-Text.
+export async function buildTexts(giveawayId: string): Promise<TextsResult> {
+  await requireUser();
+  const { giveaway, who, forTerms } = await loadForTerms(giveawayId);
+
+  const lang = buildTerms(forTerms, who);
+  const kurz = buildShortTerms(forTerms, who);
+
+  const draw = giveaway.draws[0];
+  const listUrl = who.publishBaseUrl
+    ? `${who.publishBaseUrl}/${giveaway.slug}.html`
+    : null;
+
+  return {
+    lang,
+    kurz: kurz.text,
+    kurzLaenge: kurz.length,
+    kurzPasst: kurz.fitsCaption,
+    nachweis: draw
+      ? buildProofText({
+          title: giveaway.title,
+          commitHash: draw.commitHash,
+          entrantCount: draw.entrantCount,
+          totalLots: draw.totalLots,
+          committedAt: draw.committedAt,
+          seed: draw.seedRevealedAt ? draw.seed : null,
+          drawnAt: draw.drawnAt,
+          listUrl,
+        })
+      : null,
+  };
+}
+
+/// Erzeugt die Datei für GitHub Pages.
+export async function publishPage(giveawayId: string) {
+  const userId = await requireUser();
+  const { giveaway, who, forTerms } = await loadForTerms(giveawayId);
+
+  const terms = buildTerms(forTerms, who);
+  const draw = giveaway.draws[0];
+
+  let drawData: PublishInput["draw"] = null;
+  if (draw) {
+    const slotCandidates = draw.results.map((r) => ({
+      id: r.id,
+      rank: r.rank,
+      status: r.status,
+      prizeId: r.prizeId,
+    }));
+    const resolved = resolveWinners(slotCandidates, draw.winnerSlots);
+    const byId = new Map(draw.results.map((r) => [r.id, r]));
+    const prizeById = new Map(giveaway.prizes.map((p) => [p.id, p]));
+
+    drawData = {
+      commitHash: draw.commitHash,
+      entrantCount: draw.entrantCount,
+      totalLots: draw.totalLots,
+      committedAt: draw.committedAt,
+      seed: draw.seedRevealedAt ? draw.seed : null,
+      drawnAt: draw.drawnAt,
+      entrants: draw.entrantsSnapshot as unknown as Entrant[],
+      winners: resolved.winners.flatMap((w) => {
+        const result = w.candidate ? byId.get(w.candidate.id) : null;
+        if (!result) return [];
+        return [
+          {
+            platz: w.slot + 1,
+            username: `@${result.entry.username}`,
+            // Der Gewinn hängt am Platz — Nachrücker erben ihn.
+            prize:
+              prizeById.get(prizeIdForSlot(slotCandidates, w.slot) ?? "")?.title ??
+              null,
+            text: result.entry.text,
+          },
+        ];
+      }),
+      reserves: resolved.reserves.flatMap((r) => {
+        const result = byId.get(r.id);
+        return result ? [`@${result.entry.username}`] : [];
+      }),
+    };
+  }
+
+  const html = buildPublishPage({
+    title: giveaway.title,
+    terms,
+    organizer: who.organizer,
+    contact: who.contact,
+    draw: drawData,
+  });
+
+  const dir = join(process.cwd(), "veroeffentlichung");
+  await mkdir(dir, { recursive: true });
+  const fileName = `${giveaway.slug}.html`;
+  await writeFile(join(dir, fileName), html, "utf8");
+
+  await audit({
+    action: "giveaway.published",
+    entity: "Giveaway",
+    entityId: giveawayId,
+    actor: userId,
+    detail: { fileName, withResults: Boolean(drawData?.drawnAt) },
+  });
+
+  return {
+    fileName,
+    url: who.publishBaseUrl ? `${who.publishBaseUrl}/${fileName}` : null,
+  };
+}
+
+// ── Veranstalterangaben ──────────────────────────────────────────────────────
+
+export async function saveSettings(formData: FormData) {
+  const userId = await requireUser();
+
+  const organizer = String(formData.get("organizer") ?? "").trim();
+  const contact = String(formData.get("contact") ?? "").trim();
+  const publishBaseUrl = String(formData.get("publishBaseUrl") ?? "")
+    .trim()
+    .replace(/\/+$/, "");
+
+  if (!organizer) fail("Bitte den Namen des Veranstalters angeben.");
+  if (!contact) fail("Bitte eine Kontaktmöglichkeit angeben.");
+
+  await db.settings.upsert({
+    where: { id: "settings" },
+    create: { id: "settings", organizer, contact, publishBaseUrl },
+    update: { organizer, contact, publishBaseUrl },
+  });
+
+  await audit({
+    action: "settings.saved",
+    entity: "Settings",
+    entityId: "settings",
+    actor: userId,
+  });
+
+  revalidatePath("/admin/einstellungen");
 }
 
 export async function completeGiveaway(giveawayId: string) {

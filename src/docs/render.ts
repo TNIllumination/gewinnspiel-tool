@@ -43,9 +43,10 @@ export function renderHandbook(markdown: string): RenderedHandbook {
     if (depth === 2 || depth === 3) {
       const id = uniqueId(plain);
       toc.push({ level: depth, title: plain, id });
-      // Der Rücksprung steht direkt an der Überschrift, damit man aus jedem
-      // Abschnitt mit einem Klick zurück zum Verzeichnis kommt.
-      return `<h${depth} id="${id}">${inline}<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h${depth}>\n`;
+      // Ziel ist der Seitenanfang, nicht das Inhaltsverzeichnis: In der
+      // Tool-Ansicht steht das Verzeichnis seitlich und klebt fest — ein
+      // Sprung dorthin bewegt die Seite sichtbar überhaupt nicht.
+      return `<h${depth} id="${id}">${inline}<a class="rueck" href="#seitenanfang">↑ nach oben</a></h${depth}>\n`;
     }
 
     return `<h${depth}>${inline}</h${depth}>\n`;

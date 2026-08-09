@@ -1,0 +1,285 @@
+// Praxistest für Fassung 0.3.0: mehrere Plattformen, Import in Etappen,
+// mehrere Gewinne, Nachrücken pro Gewinnplatz, Rechtstexte, Veröffentlichung.
+import { chromium } from "playwright";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+
+const B = "http://localhost:3000";
+const EMAIL = "rauchtest@example.com";
+const PASSWORD = "ein-sehr-langes-testpasswort";
+
+let bad = false;
+const ok = (m, d = "") => console.log(`✓ ${m}${d ? " — " + d : ""}`);
+const no = (m, d) => {
+  bad = true;
+  console.error(`✗ ${m} — ${d}`);
+};
+
+// Zwei sich überlappende Ausschnitte — genau wie beim Scrollen bei TikTok.
+const AUSSCHNITT_1 = [
+  "anna_berg", "Ich bin dabei", "Antworten", "12",
+  "ben_wald", "Bin dabei", "3d", "Antworten", "5",
+].join("\n");
+
+const AUSSCHNITT_2 = [
+  "ben_wald", "Bin dabei", "3d", "Antworten", "5",
+  "carla_stein", "Ich bin dabei auch", "2d", "Antworten", "1",
+  "dora_mond", "Ich bin dabei", "1d", "Antworten", "0",
+].join("\n");
+
+const INSTAGRAM_TEIL = [
+  "anna_berg", "Ich bin dabei", "Antworten",
+  "erik_falke", "Ich bin dabei", "Antworten",
+].join("\n");
+
+const browser = await chromium.launch();
+const page = await browser.newPage();
+page.setDefaultTimeout(20000);
+
+const settle = async () => {
+  await page.waitForTimeout(2500);
+  await page.reload();
+};
+
+try {
+  // ── Anmelden ──────────────────────────────────────────────────────────────
+  await page.goto(`${B}/admin/login`);
+  const setup = await page.getByRole("heading", { name: "Ersteinrichtung" }).isVisible();
+  await page.fill('input[name="email"]', EMAIL);
+  await page.fill('input[name="password"]', PASSWORD);
+  await page.getByRole("button", { name: setup ? "Konto anlegen" : "Anmelden" }).click();
+  await page.waitForURL("**/admin");
+  ok("Angemeldet");
+
+  // ── Veranstalterangaben ───────────────────────────────────────────────────
+  await page.goto(`${B}/admin/einstellungen`);
+  await page.fill('input[name="organizer"]', "Max Mustermann");
+  await page.fill('input[name="contact"]', "kontakt@beispiel.de");
+  await page.fill('input[name="publishBaseUrl"]', "https://beispiel.github.io/gewinnspiele");
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await page.waitForTimeout(2000);
+  ok("Veranstalterangaben gespeichert");
+
+  // ── Gewinnspiel über ZWEI Plattformen ─────────────────────────────────────
+  await page.goto(`${B}/admin`);
+  await page.fill('input[name="title"]', "Festival-Verlosung");
+  await page.uncheck('input[name="platform_SANDBOX"]');
+  await page.check('input[name="platform_TIKTOK"]');
+  await page.check('input[name="platform_INSTAGRAM"]');
+  await page.fill('input[name="postUrl_TIKTOK"]', "https://tiktok.com/@ich/video/1");
+  await page.fill('input[name="substituteCount"]', "2");
+  await page.getByRole("button", { name: "Anlegen" }).click();
+  await page.waitForURL(/\/admin\/[a-z0-9]+$/);
+  const slug = (await page
+    .getByRole("link", { name: "Öffentliche Seite" })
+    .getAttribute("href"))
+    ?.split("/")
+    .pop();
+  ok("Gewinnspiel über TikTok + Instagram angelegt", `/${slug}`);
+
+  // ── Import in Etappen ─────────────────────────────────────────────────────
+  const importieren = async (plattform, text) => {
+    await page.selectOption("select", { label: plattform });
+    await page.fill("textarea", text);
+    await page.getByRole("button", { name: "Prüfen", exact: true }).click();
+    await page.waitForFunction(
+      () => document.body.innerText.includes("Teilnahmen erkannt"),
+      null,
+      { timeout: 30000 },
+    );
+    await page.getByRole("button", { name: /Teilnahmen übernehmen/ }).click();
+    await page.waitForFunction(
+      () => /übernommen|Nichts Neues/.test(document.body.innerText),
+      null,
+      { timeout: 30000 },
+    );
+    return page.innerText("body");
+  };
+
+  await importieren("TikTok", AUSSCHNITT_1);
+  ok("Erster TikTok-Ausschnitt eingelesen");
+
+  const zweiter = await importieren("TikTok", AUSSCHNITT_2);
+  if (!/1 war schon vorhanden|1 waren schon vorhanden/.test(zweiter)) {
+    no("Etappen-Import", `Dublette nicht erkannt: ${zweiter.match(/.{0,80}vorhanden.{0,40}/)?.[0] ?? "?"}`);
+  } else {
+    ok("Überlappung erkannt", "doppelter Kommentar wurde übersprungen");
+  }
+
+  await importieren("Instagram", INSTAGRAM_TEIL);
+  ok("Instagram-Kommentare eingelesen");
+
+  await page.reload();
+  const stats = (await page.locator("main > div.grid").first().innerText()).replace(/\s+/g, " ");
+  // 4 von TikTok (anna, ben, carla, dora) + 2 von Instagram (anna, erik) = 6
+  if (!/KOMMENTARE 6/.test(stats)) no("Gesamtzahl", `erwartet 6, war: ${stats}`);
+  else ok("Alle Teilnahmen zusammengeführt", stats);
+
+  // anna kommentiert auf BEIDEN Plattformen → muss 2 Lose haben
+  const body = await page.innerText("body");
+  if (!/LOSE 6/.test(stats)) {
+    no("Plattform-Trennung", `anna sollte je Plattform ein Los haben: ${stats}`);
+  } else {
+    ok("Gleicher Name auf zwei Plattformen = zwei Lose");
+  }
+  if (!body.includes("TikTok: 4") || !body.includes("Instagram: 2")) {
+    no("Herkunft", "Aufschlüsselung fehlt");
+  } else {
+    ok("Herkunft wird ausgewiesen", "TikTok: 4 · Instagram: 2");
+  }
+
+  // ── Regeln mit Einsendeschluss ────────────────────────────────────────────
+  await page.fill('input[name="keywords"]', "dabei");
+  await page.fill('input[name="mentionsMin"]', "0");
+  await page.fill('input[name="endsAt"]', "2030-01-01T12:00");
+  await page.getByRole("button", { name: /Regeln speichern/ }).click();
+  await settle();
+  if (!(await page.innerText("body")).includes("mehrfach im Topf")) {
+    no("Regel-Zusammenfassung", "Hinweis auf Mehrfachchance fehlt");
+  } else {
+    ok("Zusammenfassung nennt die Mehrfachchance");
+  }
+
+  // ── Drei Gewinne ──────────────────────────────────────────────────────────
+  for (const gewinn of ["Signiertes Shirt", "Cap", "Sticker-Set"]) {
+    await page.fill('input[name="prizeTitle"]', gewinn);
+    await page.getByRole("button", { name: "Gewinn hinzufügen" }).click();
+    await settle();
+  }
+  ok("Drei Gewinne angelegt");
+
+  // ── Texte erzeugen ────────────────────────────────────────────────────────
+  await page.getByRole("button", { name: "Texte erzeugen" }).click();
+  await page.waitForFunction(
+    () => document.body.innerText.includes("Kurzfassung für die Bildunterschrift"),
+    null,
+    { timeout: 30000 },
+  );
+  const felder = await page.locator("textarea[readonly]").allTextContents();
+  const texte = felder.join("\n");
+  const fehlend = [
+    "steht in keiner Verbindung",
+    "von jeglicher Haftung frei",
+    "Alleiniger Ansprechpartner",
+  ].filter((pflicht) => !texte.includes(pflicht));
+
+  if (fehlend.length > 0) no("Pflichtbestandteile", fehlend.join(", ") + " fehlt");
+  else ok("Teilnahmebedingungen enthalten alle drei Pflichtbestandteile");
+
+  if (!/Vollständige Teilnahmebedingungen: https:\/\//.test(texte)) {
+    no("Kurzfassung", "Link auf die ausführliche Fassung fehlt");
+  } else {
+    ok("Kurzfassung verweist auf die veröffentlichte Seite");
+  }
+
+  // ── Festschreiben, zurücknehmen, wieder festschreiben ─────────────────────
+  page.on("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: /Teilnahmen festschreiben/ }).click();
+  await settle();
+  if (!(await page.innerText("body")).toLowerCase().includes("commit-hash")) {
+    no("Festschreiben", "kein Hash sichtbar");
+  } else {
+    ok("Liste festgeschrieben");
+  }
+
+  await page.getByRole("button", { name: "Festschreibung zurücknehmen" }).click();
+  await settle();
+  if (!(await page.innerText("body")).includes("Teilnahmen festschreiben")) {
+    no("Zurücknehmen", "Gewinnspiel ist nicht zurück im Sammelzustand");
+  } else {
+    ok("Festschreibung zurückgenommen");
+  }
+
+  await page.getByRole("button", { name: /Teilnahmen festschreiben/ }).click();
+  await settle();
+
+  // ── Ziehen ────────────────────────────────────────────────────────────────
+  await page.getByRole("button", { name: /Jetzt ziehen/ }).click();
+  await settle();
+  const nachZiehung = await page.innerText("body");
+  if (!nachZiehung.includes("1. Platz") || !nachZiehung.includes("3. Platz")) {
+    no("Mehrere Gewinne", "Plätze nicht korrekt beschriftet");
+  } else if (!nachZiehung.includes("Nachrücker 1")) {
+    no("Nachrücker", "keine Nachrücker ausgewiesen");
+  } else {
+    ok("Gezogen", "3 Gewinnplätze + Nachrücker sauber getrennt");
+  }
+
+  // ── Ersten Platz ablehnen → Nachrücker erbt Platz 1 ───────────────────────
+  const ersterName = (await page.locator("div.border-emerald-300").first().innerText())
+    .split("\n")
+    .find((l) => l.startsWith("@"));
+
+  const pruefliste = page.locator("section").filter({ hasText: "Gewinner prüfen" }).last();
+  await pruefliste.locator("li").filter({ hasText: "1. Platz —" }).first()
+    .getByRole("button", { name: "Ablehnen" }).click();
+  await settle();
+
+  const nachAblehnung = await page.locator("div.border-emerald-300").first().innerText();
+  if (nachAblehnung.includes(ersterName ?? "@@@")) {
+    no("Nachrücken", "abgelehnter Kandidat belegt Platz 1 weiterhin");
+  } else if (!nachAblehnung.includes("Nachgerückt")) {
+    no("Nachrücken", "kein Hinweis auf das Nachrücken");
+  } else {
+    ok("Nachrücker erbt Platz 1", nachAblehnung.replace(/\s+/g, " ").slice(0, 60));
+  }
+
+  // ── Alle bestätigen ───────────────────────────────────────────────────────
+  for (let i = 0; i < 5; i++) {
+    const offen = page.getByRole("button", { name: "Bestätigen" }).first();
+    await page.waitForTimeout(200);
+    if ((await offen.count()) === 0) break;
+    await offen.click();
+    await settle();
+  }
+  ok("Alle Gewinnplätze bestätigt");
+
+  // ── Veröffentlichen und Hash nachrechnen ──────────────────────────────────
+  await page.getByRole("button", { name: "Seite für GitHub erzeugen" }).click();
+  await page.waitForFunction(
+    () => document.body.innerText.includes("Datei erzeugt"),
+    null,
+    { timeout: 30000 },
+  );
+  ok("Seite für GitHub erzeugt");
+
+  const html = readFileSync(`veroeffentlichung/${slug}.html`, "utf8");
+  const liste = html.match(/<pre id="liste">([\s\S]*?)<\/pre>/)?.[1] ?? "";
+  const seed = html.match(/Zufallszahl<\/dt><dd><code>([a-f0-9]+)</)?.[1] ?? "";
+  const hash = html.match(/SHA-256\)<\/dt><dd><code>([a-f0-9]{64})</)?.[1] ?? "";
+
+  const entschluesselt = liste
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">").replace(/&quot;/g, '"');
+
+  const nachgerechnet = createHash("sha256")
+    .update(`${entschluesselt}\n--seed--\n${seed}`, "utf8")
+    .digest("hex");
+
+  if (!hash || !seed || !liste) {
+    no("Veröffentlichung", "Hash, Seed oder Liste fehlen in der Datei");
+  } else if (nachgerechnet !== hash) {
+    no("Nachrechnen", `Hash stimmt nicht: ${nachgerechnet.slice(0, 16)}… statt ${hash.slice(0, 16)}…`);
+  } else {
+    ok("Hash aus der veröffentlichten Datei nachgerechnet", hash.slice(0, 16) + "…");
+  }
+
+  // ── Öffentliche Seite ─────────────────────────────────────────────────────
+  const pub = await browser.newPage();
+  await pub.goto(`${B}/gewinnspiel/${slug}`);
+  const pubText = await pub.innerText("body");
+  if (!pubText.includes("Ich bin dabei")) no("Öffentlich", "Gewinnerkommentar fehlt");
+  else if (!pubText.includes("Verwaltung")) no("Öffentlich", "Rückweg fehlt");
+  else ok("Öffentliche Seite zeigt Kommentar und Rückweg");
+
+  await pub.screenshot({ path: "/tmp/030-public.png", fullPage: true });
+  await page.screenshot({ path: "/tmp/030-admin.png", fullPage: true });
+} catch (e) {
+  no("Abgebrochen", e.message);
+  const dump = await page.innerText("body").catch(() => "(kein Text)");
+  console.error("\n--- Seiteninhalt ---\n" + dump.slice(0, 1500));
+} finally {
+  await browser.close();
+  console.log(bad ? "\nFEHLGESCHLAGEN" : "\nAlles grün.");
+  process.exitCode = bad ? 1 : 0;
+}

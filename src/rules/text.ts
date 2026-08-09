@@ -74,6 +74,17 @@ export function sameUser(a: string, b: string): boolean {
   return clean(a) === clean(b);
 }
 
+/// Fingerabdruck einer Teilnahme aus Benutzername und Text.
+///
+/// Beim Einfuegen von Hand gibt es keine Kommentar-ID der Plattform. Damit
+/// etappenweises Einlesen (scrollen, kopieren, einfuegen, wiederholen) nicht
+/// zu Dubletten fuehrt, wird stattdessen ueber den Inhalt abgeglichen.
+/// Wer doppelt in der Liste steht, haette doppelte Gewinnchancen — deshalb
+/// ist das ein Fairness- und kein Schoenheitsthema.
+export function entryFingerprint(username: string, text: string): string {
+  return `${foldExpand(username.replace(/^@/, ""))}|${foldExpand(text)}`;
+}
+
 /// Zaehlt echte Zeichen (Emojis zaehlen als eins, nicht als zwei).
 export function graphemeLength(text: string): number {
   return [...text.trim()].length;

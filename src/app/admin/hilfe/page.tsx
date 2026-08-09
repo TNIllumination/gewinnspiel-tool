@@ -28,7 +28,7 @@ export default async function HilfePage() {
   const { html, toc } = renderHandbook(markdown);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
+    <main id="seitenanfang" className="mx-auto max-w-6xl px-4 py-10">
       <PageHeader
         title="Handbuch"
         subtitle="Alles zum Nachschlagen — vom Einlesen der Kommentare bis zur Ziehung."

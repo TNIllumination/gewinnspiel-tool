@@ -7,12 +7,18 @@ import {
 import { parseRuleConfig, type RuleType } from "./types";
 
 export interface CommentInput {
+  /// Eigene Kennung des Aufrufers. Die Engine reicht sie unveraendert durch,
+  /// damit sich das Ergebnis eindeutig zuordnen laesst.
+  id?: string;
   externalId?: string | null;
   username: string;
   userRef?: string | null;
   text: string;
   commentedAt: Date;
   likeCount?: number;
+  /// Von welcher Plattform die Teilnahme stammt. Fehlt sie, gelten alle
+  /// Teilnahmen als von derselben Quelle.
+  platform?: string | null;
 }
 
 export interface Rejection {
@@ -230,16 +236,23 @@ function applyDedupe(entries: EvaluatedEntry[], rules: RuleSpec[]) {
   // entries ist bereits chronologisch — die frueheste Teilnahme gewinnt.
   for (const entry of entries) {
     if (!entry.valid) continue;
-    const key = entry.username.trim().replace(/^@/, "").toLowerCase();
+
+    // Die Plattform gehoert in den Schluessel: Ob @anna von TikTok dieselbe
+    // Person ist wie @anna von Instagram, kann niemand feststellen — es
+    // koennten zwei Fremde sein. Wer auf beiden Plattformen kommentiert,
+    // ist deshalb zweimal im Topf. Genau das wird auch angesagt.
+    const name = entry.username.trim().replace(/^@/, "").toLowerCase();
+    const key = `${entry.platform ?? ""}|${name}`;
     const used = countPerUser.get(key) ?? 0;
+
     if (used >= allowed) {
       entry.valid = false;
       entry.rejections.push({
         ruleType: "DEDUPE",
         message:
           allowed === 1
-            ? "Mehrfachteilnahme — es zählt der erste Kommentar dieser Person."
-            : `Mehrfachteilnahme — pro Person zählen höchstens ${allowed} Kommentare.`,
+            ? "Mehrfachteilnahme — es zählt der erste Kommentar dieser Person auf dieser Plattform."
+            : `Mehrfachteilnahme — pro Person zählen höchstens ${allowed} Kommentare je Plattform.`,
       });
     } else {
       countPerUser.set(key, used + 1);

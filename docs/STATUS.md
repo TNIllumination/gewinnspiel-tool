@@ -58,24 +58,20 @@
   Inhaltsverzeichnis als `ANLEITUNG.html` und unter `/admin/hilfe`, Start öffnet
   jetzt die Verwaltung. `docs/SURFACE.md` ist in `docs/HANDBUCH.md` aufgegangen.
 
+- **Fassung 0.3.0**: Import in Etappen mit Dublettenerkennung über
+  `entryFingerprint`; mehrere Plattformen je Gewinnspiel (`GiveawaySource`,
+  `Entry.platform`) mit gemeinsamem Lostopf und plattformweiser Mehrfachteilnahme;
+  mehrere Gewinne korrekt über `src/draw/promotion.ts` (Gewinn hängt am Platz, nicht
+  an der Person); Teilnahmebedingungen und Nachweis aus `src/legal/`; Veröffentlichung
+  als HTML für GitHub Pages inklusive nachrechenbarer Teilnehmerliste; Einsendeschluss,
+  `releaseCommit`, Beenden-Knopf, `npm run passwort-neu`.
+
 ## Als Nächstes
 
 1. PDF-Ziehungsprotokoll als Rechtsnachweis.
 2. Rechtstexte (Impressum, Datenschutzerklärung, Verarbeitungsverzeichnis) und
    automatische Löschfristen.
 3. Instagram-Anbindung (Phase 2) und YouTube (Phase 2b).
-
-## Bekannter Fehler — als Nächstes dran
-
-**Mehrere Gewinne funktionieren noch nicht.** `performDraw` zieht `1 + substituteCount`
-Personen und verteilt die Gewinne über `giveaway.prizes[index]` auf die Ränge 0, 1, 2 …
-Die Ränge ab 1 sind aber die **Nachrücker**. Bei drei Gewinnen entstehen dadurch zwei
-Personen, die als „Nachrücker" beschriftet sind, aber einen Preis zugeteilt bekommen —
-auch auf der öffentlichen Seite. Für den 2. und 3. Preis gibt es zudem keine Nachrücker.
-
-Mit **einem** Gewinn ist alles korrekt. Lösung: `winnerSlots` auf `Draw` speichern,
-`winnerSlots + substituteCount` ziehen und das Nachrücken pro Gewinnplatz in einer
-testbaren Funktion `src/draw/promotion.ts` lösen.
 
 ## Zurück zu PostgreSQL (falls später Hosting gewünscht)
 

@@ -45,9 +45,10 @@
   ul.inhalt ul li { font-weight: 400; font-size: .95rem; }
   ul.inhalt a { text-decoration: none; }
   ul.inhalt a:hover { text-decoration: underline; }
-  .rueck { float: right; font-size: .8rem; text-decoration: none; opacity: .35;
-           font-weight: 400; }
-  .rueck:hover { opacity: 1; }
+  .rueck { float: right; font-size: .8rem; text-decoration: none; font-weight: 400;
+           color: #64748b; padding: .35rem .6rem; border-radius: 6px;
+           background: #eef2f7; white-space: nowrap; }
+  .rueck:hover { background: #dbe3ec; color: #1e293b; }
   @media (prefers-color-scheme: dark) {
     body { color: #e2e8f0; background: #0f172a; }
     h2 { border-top-color: #334155; }
@@ -62,40 +63,40 @@
 </head>
 <body>
 
-<div class="kopf">
+<div class="kopf" id="seitenanfang">
   <h1>Gewinnspiel-Tool</h1>
-  <p>Handbuch zur Fassung 0.2.0</p>
+  <p>Handbuch zur Fassung 0.3.0</p>
 </div>
 
 <div class="inhalt-box" id="inhalt">
   <h2>Inhalt</h2>
-  <ul class="inhalt"><li><a href="#was-das-tool-macht">Was das Tool macht</a></li><li><a href="#einrichten">Einrichten</a><ul><li><a href="#node-js-installieren">Node.js installieren</a></li><li><a href="#das-tool-herunterladen">Das Tool herunterladen</a></li><li><a href="#starten">Starten</a></li></ul></li><li><a href="#dein-erstes-gewinnspiel">Dein erstes Gewinnspiel</a></li><li><a href="#teilnahmen-einlesen">Teilnahmen einlesen</a><ul><li><a href="#tiktok">TikTok</a></li><li><a href="#instagram-und-youtube">Instagram und YouTube</a></li><li><a href="#warum-es-eine-vorschau-gibt">Warum es eine Vorschau gibt</a></li><li><a href="#welche-formate-erkannt-werden">Welche Formate erkannt werden</a></li></ul></li><li><a href="#teilnahmebedingungen">Teilnahmebedingungen</a><ul><li><a href="#diese-woerter-muessen-vorkommen">Diese Wörter müssen vorkommen</a></li><li><a href="#freunde-markieren">Freunde markieren</a></li><li><a href="#mindestlaenge-der-antwort">Mindestlänge der Antwort</a></li><li><a href="#mehrfachteilnahme">Mehrfachteilnahme</a></li><li><a href="#ausgeschlossene-accounts">Ausgeschlossene Accounts</a></li><li><a href="#zusatzlose">Zusatzlose</a></li><li><a href="#warum-ablehnungen-begruendet-werden">Warum Ablehnungen begründet werden</a></li></ul></li><li><a href="#gewinne-anlegen">Gewinne anlegen</a></li><li><a href="#die-ziehung">Die Ziehung</a><ul><li><a href="#schritt-1-liste-festschreiben">Schritt 1: Liste festschreiben</a></li><li><a href="#schritt-2-ziehen">Schritt 2: Ziehen</a></li><li><a href="#warum-das-etwas-beweist">Warum das etwas beweist</a></li></ul></li><li><a href="#gewinner-pruefen-und-nachruecker">Gewinner prüfen und Nachrücker</a></li><li><a href="#was-die-plattformen-nicht-hergeben">Was die Plattformen nicht hergeben</a><ul><li><a href="#warum-du-es-trotzdem-verlangen-solltest">Warum du es trotzdem verlangen solltest</a></li></ul></li><li><a href="#datenschutz">Datenschutz</a><ul><li><a href="#die-datei-env">Die Datei .env</a></li></ul></li><li><a href="#aktualisieren">Aktualisieren</a></li><li><a href="#bekannte-einschraenkungen">Bekannte Einschränkungen</a></li><li><a href="#wenn-etwas-klemmt">Wenn etwas klemmt</a></li><li><a href="#fachbegriffe-kurz-erklaert">Fachbegriffe kurz erklärt</a></li></ul>
+  <ul class="inhalt"><li><a href="#was-das-tool-macht">Was das Tool macht</a></li><li><a href="#einrichten">Einrichten</a><ul><li><a href="#node-js-installieren">Node.js installieren</a></li><li><a href="#das-tool-herunterladen">Das Tool herunterladen</a></li><li><a href="#starten">Starten</a></li></ul></li><li><a href="#dein-erstes-gewinnspiel">Dein erstes Gewinnspiel</a></li><li><a href="#teilnahmen-einlesen">Teilnahmen einlesen</a><ul><li><a href="#tiktok-warum-du-in-etappen-einlesen-musst">TikTok — warum du in Etappen einlesen musst</a></li><li><a href="#instagram-und-youtube">Instagram und YouTube</a></li><li><a href="#mehrere-plattformen-in-einem-gewinnspiel">Mehrere Plattformen in einem Gewinnspiel</a></li><li><a href="#warum-es-eine-vorschau-gibt">Warum es eine Vorschau gibt</a></li><li><a href="#welche-formate-erkannt-werden">Welche Formate erkannt werden</a></li></ul></li><li><a href="#teilnahmebedingungen">Teilnahmebedingungen</a><ul><li><a href="#diese-woerter-muessen-vorkommen">Diese Wörter müssen vorkommen</a></li><li><a href="#freunde-markieren">Freunde markieren</a></li><li><a href="#mindestlaenge-der-antwort">Mindestlänge der Antwort</a></li><li><a href="#mehrfachteilnahme">Mehrfachteilnahme</a></li><li><a href="#ausgeschlossene-accounts">Ausgeschlossene Accounts</a></li><li><a href="#zusatzlose">Zusatzlose</a></li><li><a href="#warum-ablehnungen-begruendet-werden">Warum Ablehnungen begründet werden</a></li></ul></li><li><a href="#gewinne-anlegen">Gewinne anlegen</a></li><li><a href="#die-ziehung">Die Ziehung</a><ul><li><a href="#schritt-1-liste-festschreiben">Schritt 1: Liste festschreiben</a></li><li><a href="#schritt-2-ziehen">Schritt 2: Ziehen</a></li><li><a href="#warum-das-etwas-beweist">Warum das etwas beweist</a></li></ul></li><li><a href="#gewinner-pruefen-und-nachruecker">Gewinner prüfen und Nachrücker</a></li><li><a href="#was-die-plattformen-nicht-hergeben">Was die Plattformen nicht hergeben</a><ul><li><a href="#warum-du-es-trotzdem-verlangen-solltest">Warum du es trotzdem verlangen solltest</a></li></ul></li><li><a href="#datenschutz">Datenschutz</a><ul><li><a href="#die-datei-env">Die Datei .env</a></li></ul></li><li><a href="#aktualisieren">Aktualisieren</a></li><li><a href="#teilnahmebedingungen-veroeffentlichen">Teilnahmebedingungen veröffentlichen</a><ul><li><a href="#kostenlos-online-stellen-mit-github-pages">Kostenlos online stellen mit GitHub Pages</a></li></ul></li><li><a href="#wenn-etwas-klemmt">Wenn etwas klemmt</a></li><li><a href="#fachbegriffe-kurz-erklaert">Fachbegriffe kurz erklärt</a></li></ul>
 </div>
 
 <h1>Handbuch</h1>
 <p>Alles, was du über das Gewinnspiel-Tool wissen musst — von der Installation bis
 zur Ziehung. Geschrieben für jemanden, der mit dem technischen Hintergrund nichts
 zu tun haben will.</p>
-<h2 id="was-das-tool-macht">Was das Tool macht<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h2>
+<h2 id="was-das-tool-macht">Was das Tool macht<a class="rueck" href="#seitenanfang">↑ nach oben</a></h2>
 <p>Du veranstaltest ein Gewinnspiel auf TikTok, Instagram oder YouTube. Die Leute
 kommentieren unter deinem Beitrag. Dieses Tool liest die Kommentare ein, prüft
 automatisch, wer die Bedingungen erfüllt hat, und zieht daraus einen Gewinner —
 <strong>nachweisbar fair</strong>, sodass dir niemand Manipulation vorwerfen kann.</p>
 <p>Es läuft <strong>auf deinem eigenen Rechner</strong>. Kein Server, keine monatlichen Kosten.
 Die Daten der Teilnehmer verlassen dein Gerät nie.</p>
-<h2 id="einrichten">Einrichten<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h2>
+<h2 id="einrichten">Einrichten<a class="rueck" href="#seitenanfang">↑ nach oben</a></h2>
 <p>Das machst du einmal, danach nie wieder.</p>
-<h3 id="node-js-installieren">Node.js installieren<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="node-js-installieren">Node.js installieren<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p>Auf <a href="https://nodejs.org">nodejs.org</a> die große grüne Schaltfläche anklicken
 (Variante <strong>LTS</strong>), Datei ausführen, Weiter–Weiter–Fertig.</p>
-<h3 id="das-tool-herunterladen">Das Tool herunterladen<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="das-tool-herunterladen">Das Tool herunterladen<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p>Auf der GitHub-Seite des Projekts auf <strong>Code → Download ZIP</strong>, danach die ZIP-Datei
 entpacken — zum Beispiel nach <code>Dokumente\gewinnspiel-tool</code>.</p>
 <blockquote>
 <p><strong>Wichtig:</strong> Nicht nach „Programme&quot; entpacken. Dort darf das Tool seine Datenbank
 nicht anlegen. Ein normaler Ordner unter „Dokumente&quot; ist ideal.</p>
 </blockquote>
-<h3 id="starten">Starten<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="starten">Starten<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p><strong><code>start.bat</code> doppelklicken.</strong></p>
 <p>Beim ersten Mal dauert es ein paar Minuten — Bausteine werden geladen, Schlüssel
 erzeugt, die Datenbank angelegt und die Anwendung gebaut. Danach geht es in Sekunden.</p>
@@ -105,12 +106,12 @@ Browser automatisch. Falls nicht: <strong><a href="http://localhost:3000/admin">
 mindestens 12 Zeichen. Es gibt nur dieses eine Konto.</p>
 <p><strong>Zum Beenden</strong> das schwarze Fenster schließen. Solange es offen ist, läuft das Tool —
 das Fenster <em>ist</em> der Server.</p>
-<h2 id="dein-erstes-gewinnspiel">Dein erstes Gewinnspiel<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h2>
+<h2 id="dein-erstes-gewinnspiel">Dein erstes Gewinnspiel<a class="rueck" href="#seitenanfang">↑ nach oben</a></h2>
 <p><strong>Mach den ersten Durchlauf im Testmodus.</strong> Der erzeugt 250 erfundene Teilnehmer,
 du siehst den kompletten Ablauf, und es kann nichts schiefgehen.</p>
 <ol>
 <li><strong>Neues Gewinnspiel</strong> (rechts im Dashboard): Titel eintragen, als Plattform
-<strong>Testmodus</strong> wählen, <strong>Anlegen</strong></li>
+<strong>Testmodus</strong> ankreuzen, <strong>Anlegen</strong></li>
 <li><strong>Teilnahmen einlesen</strong> → <em>250 Testteilnehmer erzeugen</em></li>
 <li><strong>Teilnahmebedingungen</strong> → ein Wort eintragen, speichern</li>
 <li><strong>Gewinne</strong> → einen Gewinn hinzufügen</li>
@@ -119,31 +120,52 @@ du siehst den kompletten Ablauf, und es kann nichts schiefgehen.</p>
 </ol>
 <p>Danach machst du dasselbe mit deinem echten Beitrag.</p>
 <blockquote>
-<p>Bleib beim ersten Mal bei <strong>einem</strong> Gewinn. Mehrere Gewinne funktionieren derzeit
-noch nicht richtig — siehe „Bekannte Einschränkungen&quot;.</p>
+<p>Du kannst auch mehrere Gewinne anlegen. Für jeden wird ein eigener Gewinner
+gezogen, Nachrücker kommen zusätzlich obendrauf.</p>
 </blockquote>
-<h2 id="teilnahmen-einlesen">Teilnahmen einlesen<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h2>
-<h3 id="tiktok">TikTok<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h2 id="teilnahmen-einlesen">Teilnahmen einlesen<a class="rueck" href="#seitenanfang">↑ nach oben</a></h2>
+<h3 id="tiktok-warum-du-in-etappen-einlesen-musst">TikTok — warum du in Etappen einlesen musst<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p>TikTok gibt Kommentare <strong>nicht</strong> über eine Schnittstelle heraus (Näheres unter
-„Was die Plattformen nicht hergeben&quot;). Deshalb kopierst du sie:</p>
+„Was die Plattformen nicht hergeben&quot;). Du kopierst sie also.</p>
+<p>Dabei stößt du auf etwas, das zunächst wie ein Fehler aussieht: <strong>Es kommen nie alle
+Kommentare mit.</strong> Bei 98 Kommentaren landen vielleicht 14 in der Zwischenablage.</p>
+<p>Das liegt nicht an dir. TikTok hält immer nur einen Ausschnitt der Kommentare in der
+Seite und wirft weit weg gescrollte wieder heraus. Markieren erfasst deshalb nur das
+gerade Sichtbare — mit keinem Trick mehr.</p>
+<p><strong>Die Lösung ist Einlesen in Etappen:</strong></p>
 <ol>
 <li>Beitrag im <strong>Browser am Rechner</strong> öffnen — in der App lässt sich nichts kopieren</li>
-<li>Kommentarbereich öffnen und <strong>bis ganz unten scrollen</strong>, bis alle geladen sind</li>
-<li>Mit der Maus über die Kommentare ziehen und <strong>Strg+C</strong> drücken (Mac: Cmd+C)</li>
-<li>Im Tool einfügen und auf <strong>Prüfen</strong> klicken</li>
+<li>Kommentarbereich öffnen, ein Stück <strong>nach unten scrollen</strong></li>
+<li>Über die Kommentare ziehen, <strong>Strg+C</strong> (Mac: Cmd+C)</li>
+<li>Im Tool einfügen → <strong>Prüfen</strong> → <strong>Übernehmen</strong></li>
+<li><strong>Weiter scrollen und wiederholen</strong>, bis nichts Neues mehr dazukommt</li>
 </ol>
-<p>Datumsangaben, „Antworten&quot; und Like-Zahlen werden dabei automatisch aussortiert.</p>
-<h3 id="instagram-und-youtube">Instagram und YouTube<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
-<p>Genauso wie bei TikTok. Später sollen Instagram und YouTube die Kommentare
-automatisch abholen — dafür braucht Instagram allerdings eine Freigabe von Meta,
-die einige Wochen dauert.</p>
-<h3 id="warum-es-eine-vorschau-gibt">Warum es eine Vorschau gibt<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<p>Das Tool erkennt, was du schon eingelesen hast, und überspringt es. Du darfst dich
+also ruhig überlappen — nach jedem Übernehmen steht da, wie viele davon neu waren.
+Kommt „0 neu&quot;, hast du alles.</p>
+<p>Datumsangaben, „Antworten&quot; und Like-Zahlen werden automatisch aussortiert.</p>
+<h3 id="instagram-und-youtube">Instagram und YouTube<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
+<p>Genauso wie bei TikTok, meist aber angenehmer: Instagram lädt über „Weitere
+Kommentare laden&quot; nach und <strong>behält</strong> das Geladene in der Seite. Oft bekommst du
+dort alles auf einmal.</p>
+<p>Später sollen Instagram und YouTube die Kommentare automatisch abholen — dafür
+braucht Instagram allerdings eine Freigabe von Meta, die einige Wochen dauert.</p>
+<h3 id="mehrere-plattformen-in-einem-gewinnspiel">Mehrere Plattformen in einem Gewinnspiel<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
+<p>Ein Gewinnspiel kann gleichzeitig auf Instagram, TikTok und YouTube laufen. Beim
+Einlesen wählst du, von welcher Plattform der Ausschnitt stammt. Alle Teilnahmen
+landen in <strong>einem gemeinsamen Lostopf</strong>.</p>
+<p>Wichtig: <strong>Wer auf mehreren Plattformen kommentiert, ist mehrfach im Topf.</strong> Das ist
+Absicht — so kannst du „kommentier auch drüben für mehr Chancen&quot; ansagen und
+gewinnst Reichweite auf beiden Kanälen. Ob <code>@anna</code> auf TikTok dieselbe Person ist
+wie <code>@anna</code> auf Instagram, kann ohnehin niemand feststellen. Der Punkt steht
+automatisch in den Teilnahmebedingungen.</p>
+<h3 id="warum-es-eine-vorschau-gibt">Warum es eine Vorschau gibt<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p>Nach dem Einfügen zeigt das Tool erst, <strong>was es erkannt hat</strong>: wie viele Teilnahmen,
 in welchem Format, und die ersten zehn mit Name und Kommentar. Erst wenn du
 <strong>Übernehmen</strong> drückst, wird gespeichert.</p>
 <p>Das ist Absicht. Das Tool muss beim Einfügen erraten, wie der Text aufgebaut ist —
 und ein Fehlgriff soll auffallen, solange er noch folgenlos ist.</p>
-<h3 id="welche-formate-erkannt-werden">Welche Formate erkannt werden<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="welche-formate-erkannt-werden">Welche Formate erkannt werden<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <table>
 <thead>
 <tr>
@@ -166,24 +188,24 @@ und ein Fehlgriff soll auffallen, solange er noch folgenlos ist.</p>
 </tbody></table>
 <p>Zeilen, die sich nicht zuordnen lassen, werden <strong>gemeldet</strong> statt stillschweigend
 verworfen. Mehrzeilige Kommentare bleiben zusammen.</p>
-<h2 id="teilnahmebedingungen">Teilnahmebedingungen<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h2>
+<h2 id="teilnahmebedingungen">Teilnahmebedingungen<a class="rueck" href="#seitenanfang">↑ nach oben</a></h2>
 <p>Über den Eingabefeldern steht <strong>„Das gilt gerade&quot;</strong> — dort siehst du in ganzen Sätzen,
 welche Regeln aktuell greifen. Auch das, was <em>nicht</em> gefordert ist.</p>
 <p>Nach dem Speichern werden alle bereits eingelesenen Teilnahmen sofort neu bewertet.</p>
-<h3 id="diese-woerter-muessen-vorkommen">Diese Wörter müssen vorkommen<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="diese-woerter-muessen-vorkommen">Diese Wörter müssen vorkommen<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p>Mehrere mit Komma trennen. Darunter wählst du, ob <strong>eines</strong> genügt oder <strong>alle</strong>
 vorkommen müssen.</p>
 <p>Groß- und Kleinschreibung ist egal. Umlaute ebenso: Wer „Grüße&quot; schreibt, erfüllt
 eine Regel auf „gruesse&quot; genauso wie auf „grusse&quot;. Auch unsichtbare Zeichen, mit
 denen man Filter austricksen könnte, werden erkannt.</p>
-<h3 id="freunde-markieren">Freunde markieren<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="freunde-markieren">Freunde markieren<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p>Die Anzahl verschiedener Personen, die im Kommentar mit <code>@</code> markiert sein müssen.</p>
 <p><strong>Trag <code>0</code> ein, wenn du das nicht verlangst.</strong> Dieselbe Person doppelt zu markieren
 zählt einmal; sich selbst oder dich zu markieren zählt nicht.</p>
-<h3 id="mindestlaenge-der-antwort">Mindestlänge der Antwort<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="mindestlaenge-der-antwort">Mindestlänge der Antwort<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p>Nützlich, wenn du eine echte Antwort willst statt nur ein Emoji. <code>0</code> heißt: keine
 Mindestlänge.</p>
-<h3 id="mehrfachteilnahme">Mehrfachteilnahme<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="mehrfachteilnahme">Mehrfachteilnahme<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <table>
 <thead>
 <tr>
@@ -204,29 +226,29 @@ Mindestlänge.</p>
 <td>Jeder Kommentar ist ein eigenes Los</td>
 </tr>
 </tbody></table>
-<h3 id="ausgeschlossene-accounts">Ausgeschlossene Accounts<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="ausgeschlossene-accounts">Ausgeschlossene Accounts<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p>Eigene Zweitkonten, Team, frühere Gewinner. Komma- oder zeilengetrennt.</p>
-<h3 id="zusatzlose">Zusatzlose<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="zusatzlose">Zusatzlose<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p>Wer mindestens die angegebene Zahl an Freunden markiert, bekommt zusätzliche Lose
 und damit eine höhere Gewinnchance.</p>
-<h3 id="warum-ablehnungen-begruendet-werden">Warum Ablehnungen begründet werden<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="warum-ablehnungen-begruendet-werden">Warum Ablehnungen begründet werden<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p>Unter den Regeln siehst du die zuletzt abgelehnten Teilnahmen — <strong>jeweils mit Grund</strong>,
 zum Beispiel: <em>„Es müssen 2 verschiedene Freunde markiert werden, markiert wurde 1.&quot;</em></p>
 <p>So kannst du bei Nachfragen jederzeit belegen, warum jemand nicht dabei war.</p>
-<h2 id="gewinne-anlegen">Gewinne anlegen<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h2>
+<h2 id="gewinne-anlegen">Gewinne anlegen<a class="rueck" href="#seitenanfang">↑ nach oben</a></h2>
 <p>Name, optional Beschreibung und ein Bild-Link. Die Gewinne erscheinen auch auf der
 öffentlichen Seite deines Gewinnspiels.</p>
-<h2 id="die-ziehung">Die Ziehung<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h2>
+<h2 id="die-ziehung">Die Ziehung<a class="rueck" href="#seitenanfang">↑ nach oben</a></h2>
 <p>Die Ziehung läuft in <strong>zwei Schritten</strong>. Das wirkt umständlich, ist aber der ganze
 Trick — dadurch wird sie nachrechenbar.</p>
-<h3 id="schritt-1-liste-festschreiben">Schritt 1: Liste festschreiben<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="schritt-1-liste-festschreiben">Schritt 1: Liste festschreiben<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p>Die Teilnehmerliste wird eingefroren und zusammen mit einer geheimen Zufallszahl
 (dem <strong>Seed</strong>) zu einer Prüfsumme verrechnet, dem <strong>Commit-Hash</strong>.</p>
 <p>Diesen Hash <strong>veröffentlichst du vor der Ziehung</strong> — etwa als Kommentar unter deinem
 Beitrag. Er ist eine Art Fingerabdruck der Teilnehmerliste.</p>
-<h3 id="schritt-2-ziehen">Schritt 2: Ziehen<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="schritt-2-ziehen">Schritt 2: Ziehen<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p>Erst jetzt wird gezogen, und der Seed wird offengelegt.</p>
-<h3 id="warum-das-etwas-beweist">Warum das etwas beweist<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="warum-das-etwas-beweist">Warum das etwas beweist<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p>Aus Liste und Seed lässt sich der Hash jederzeit nachrechnen. Hättest du die Liste
 nachträglich verändert — jemanden hinzugefügt oder entfernt — käme ein völlig
 anderer Hash heraus als der, den du vorher veröffentlicht hast.</p>
@@ -235,13 +257,13 @@ dasselbe Ergebnis nachrechnen. Du kannst also weder die Liste noch das Ergebnis
 manipulieren, ohne dass es auffällt.</p>
 <p>Das ist der Unterschied zwischen „vertrau mir&quot; und „rechne selbst nach&quot; — ein
 starkes Argument, wenn jemand die Fairness anzweifelt.</p>
-<h2 id="gewinner-pruefen-und-nachruecker">Gewinner prüfen und Nachrücker<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h2>
+<h2 id="gewinner-pruefen-und-nachruecker">Gewinner prüfen und Nachrücker<a class="rueck" href="#seitenanfang">↑ nach oben</a></h2>
 <p>Gezogen wird der Gewinner <strong>plus mehrere Nachrücker</strong> (Standard: 5).</p>
 <p>Zu jedem Kandidaten gibt es einen Direktlink auf sein Profil. Du bestätigst den
 Gewinner mit einem Klick. Lehnst du ihn ab — etwa weil er nicht erreichbar ist —
 rückt automatisch der nächste nach.</p>
 <p>Jede Entscheidung wird mit Zeitpunkt protokolliert.</p>
-<h2 id="was-die-plattformen-nicht-hergeben">Was die Plattformen nicht hergeben<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h2>
+<h2 id="was-die-plattformen-nicht-hergeben">Was die Plattformen nicht hergeben<a class="rueck" href="#seitenanfang">↑ nach oben</a></h2>
 <p>Hier ist Ehrlichkeit wichtiger als Wunschdenken:</p>
 <table>
 <thead>
@@ -281,12 +303,12 @@ keine Grundlage.</p>
 <p><strong>Bei TikTok kommt hinzu</strong>, dass es überhaupt keine Berechtigung zum Lesen von
 Kommentaren gibt — die offizielle Liste kennt nur das Hochladen und Auflisten von
 Videos. Deshalb der Weg über Kopieren und Einfügen.</p>
-<h3 id="warum-du-es-trotzdem-verlangen-solltest">Warum du es trotzdem verlangen solltest<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="warum-du-es-trotzdem-verlangen-solltest">Warum du es trotzdem verlangen solltest<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p>Schreib ruhig „folgen, liken, kommentieren&quot; in deine Bedingungen. Das pusht deinen
 Beitrag im Algorithmus und bringt dir Reichweite — auch wenn niemand es einzeln
 nachprüft. Das Tool zwingt dich nur nicht dazu, Häkchen zu setzen für etwas, das du
 gar nicht geprüft hast.</p>
-<h2 id="datenschutz">Datenschutz<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h2>
+<h2 id="datenschutz">Datenschutz<a class="rueck" href="#seitenanfang">↑ nach oben</a></h2>
 <p>Das Tool ist auf Datensparsamkeit gebaut: Es speichert Benutzername, Kommentartext
 und Zeitpunkt — keine Profilbilder, keine Followerzahlen, keine fremden Beiträge.</p>
 <p>Alles steckt in <strong>einer einzigen Datei</strong> im Projektordner:</p>
@@ -297,12 +319,12 @@ auch immer. <strong>Zurückspielen</strong> heißt: Datei zurückkopieren. Sinnv
 direkt nach einer Ziehung.</p>
 <p>Die Datei enthält personenbezogene Daten und gehört nicht in ein öffentliches
 Repository — das Projekt schließt sie automatisch aus.</p>
-<h3 id="die-datei-env">Die Datei <code>.env</code><a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h3>
+<h3 id="die-datei-env">Die Datei <code>.env</code><a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
 <p>Beim ersten Start erzeugt das Tool zwei zufällige Schlüssel und legt sie dort ab.</p>
 <p><strong>Den <code>ENCRYPTION_KEY</code> niemals ändern.</strong> Mit ihm sind gespeicherte Zugangsdaten und
 Gewinner-Angaben verschlüsselt — ist er weg oder verändert, sind diese Daten
 unwiederbringlich verloren. Sicherst du die Datenbank, sichere die <code>.env</code> gleich mit.</p>
-<h2 id="aktualisieren">Aktualisieren<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h2>
+<h2 id="aktualisieren">Aktualisieren<a class="rueck" href="#seitenanfang">↑ nach oben</a></h2>
 <p>Beim Start schaut das Tool kurz nach, ob es eine neuere Fassung gibt:</p>
 <pre><code>▶ Neue Fassung 0.3.0 verfügbar (du hast 0.2.0)
   Jetzt aktualisieren? [j/n]
@@ -316,15 +338,47 @@ und sagt dir das.</p>
 <p><strong>Deine Datenbank und deine Schlüssel werden dabei nie überschrieben.</strong> Vor jedem
 Update landet eine datierte Kopie im Ordner <code>sicherung</code>.</p>
 <p>Ohne Internet wird die Prüfung stillschweigend übersprungen.</p>
-<h2 id="bekannte-einschraenkungen">Bekannte Einschränkungen<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h2>
+<h2 id="teilnahmebedingungen-veroeffentlichen">Teilnahmebedingungen veröffentlichen<a class="rueck" href="#seitenanfang">↑ nach oben</a></h2>
+<p>Zwei Dinge musst du bei jedem Gewinnspiel dazuschreiben — beides verlangen die
+Plattformen und das Gesetz:</p>
+<ol>
+<li>Dass die Aktion <strong>in keiner Verbindung</strong> zu Instagram/TikTok steht</li>
+<li>Dass Teilnehmer die Plattform <strong>von jeglicher Haftung freistellen</strong></li>
+<li>Dass <strong>du allein Ansprechpartner</strong> bist und Fragen nicht an die Plattform gehen</li>
+</ol>
+<p>Dazu kommt: Teilnahmebedingungen müssen <strong>leicht zugänglich</strong> sein (§ 6 DDG).</p>
+<p>Das Tool nimmt dir das ab. Trag einmalig unter <strong>Einstellungen</strong> deinen Namen und
+eine Kontaktmöglichkeit ein, dann erzeugt der Knopf <strong>Texte erzeugen</strong> im Gewinnspiel:</p>
 <ul>
-<li><strong>Mehrere Gewinne</strong> funktionieren noch nicht richtig: Nachrücker bekommen
-fälschlich Preise zugeteilt. Mit <strong>einem</strong> Gewinn ist alles korrekt. Die Korrektur
-kommt in einer der nächsten Fassungen.</li>
-<li>Die öffentliche Gewinner-Seite ist nur auf deinem Rechner erreichbar. Damit
-Teilnehmer sie selbst aufrufen können, bräuchte es einen Server im Internet.</li>
+<li>eine <strong>Kurzfassung</strong> für die Bildunterschrift des Beitrags, mit allen drei
+Pflichtbestandteilen und einem Link auf die ausführliche Fassung</li>
+<li>die <strong>vollständigen Teilnahmebedingungen</strong> — erzeugt aus deinen echten Regeln,
+nicht aus einer Vorlage</li>
+<li>den <strong>Nachweis-Text</strong> zur Ziehung zum Einfügen als Kommentar</li>
 </ul>
-<h2 id="wenn-etwas-klemmt">Wenn etwas klemmt<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h2>
+<blockquote>
+<p>Der Text gehört in die <strong>Bildunterschrift</strong>, nicht in einen Kommentar: TikTok-
+Kommentare fassen nur etwa 150 Zeichen. Das Tool zählt mit und warnt, wenn es
+zu lang wird.</p>
+</blockquote>
+<h3 id="kostenlos-online-stellen-mit-github-pages">Kostenlos online stellen mit GitHub Pages<a class="rueck" href="#seitenanfang">↑ nach oben</a></h3>
+<p>Damit Teilnehmer die ausführliche Fassung auch aufrufen können, brauchst du eine
+öffentliche Adresse — die kostet aber nichts:</p>
+<ol>
+<li>Auf GitHub ein neues öffentliches Repository anlegen, z. B. <code>gewinnspiele</code></li>
+<li>Unter <strong>Settings → Pages</strong> die Veröffentlichung einschalten</li>
+<li>Im Tool auf <strong>Seite für GitHub erzeugen</strong> — die Datei landet im Ordner
+<code>veroeffentlichung</code></li>
+<li>Auf GitHub <strong>Add file → Upload files</strong>, Datei hineinziehen, <strong>Commit changes</strong></li>
+<li>Die Adresse unter <strong>Einstellungen</strong> eintragen, dann baut das Tool den Link
+für den Beitrag automatisch</li>
+</ol>
+<p>Lade zweimal hoch: vor dem Start mit den Bedingungen, nach der Ziehung mit dem
+Ergebnis. Gleicher Dateiname, gleiche Adresse — der Link im Beitrag bleibt gültig.</p>
+<p>Auf der Seite stehen nach der Ziehung auch Prüfsumme, Zufallszahl und die
+vollständige Teilnehmerliste. <strong>Erst dadurch kann jemand die Ziehung wirklich
+nachrechnen</strong> — sonst bliebe die faire Ziehung eine Behauptung.</p>
+<h2 id="wenn-etwas-klemmt">Wenn etwas klemmt<a class="rueck" href="#seitenanfang">↑ nach oben</a></h2>
 <table>
 <thead>
 <tr>
@@ -363,7 +417,7 @@ Teilnehmer sie selbst aufrufen können, bräuchte es einen Server im Internet.</
 </tbody></table>
 <p>Bei allem anderen: die letzten Zeilen aus dem schwarzen Fenster kopieren und
 schicken.</p>
-<h2 id="fachbegriffe-kurz-erklaert">Fachbegriffe kurz erklärt<a class="rueck" href="#inhalt" title="Zurück zum Inhaltsverzeichnis">↑</a></h2>
+<h2 id="fachbegriffe-kurz-erklaert">Fachbegriffe kurz erklärt<a class="rueck" href="#seitenanfang">↑ nach oben</a></h2>
 <p><strong>Los</strong> — Ein Ticket in der Lostrommel. Normalerweise hat jede gültige Teilnahme ein
 Los; über Zusatzlose kann jemand mehrere bekommen und damit bessere Chancen.</p>
 <p><strong>Nachrücker</strong> — Gleichzeitig mit dem Gewinner gezogene Ersatzpersonen, der Reihe
@@ -377,6 +431,8 @@ Passiert beim Start automatisch, deine Daten bleiben erhalten.</p>
 <p><strong>API / Schnittstelle</strong> — Der offizielle Weg, auf dem Programme Daten von einer
 Plattform abrufen dürfen. Was dort nicht vorgesehen ist, geht schlicht nicht.</p>
 <p><strong>Testmodus</strong> — Betriebsart mit erfundenen Teilnehmern zum gefahrlosen Ausprobieren.</p>
+<p><strong>Gewinnplatz</strong> — Ein Platz mit eigenem Gewinn (1., 2., 3. Platz). Der Gewinn hängt
+am Platz: Rückt jemand auf Platz 1 nach, bekommt er den Hauptgewinn.</p>
 
 
 </body>

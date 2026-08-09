@@ -16,4 +16,7 @@ if errorlevel 1 (
 )
 
 node scripts\start.mjs
-pause
+
+REM Nur im Fehlerfall stehenbleiben — bei sauberem Beenden
+REM (Knopf im Tool) schliesst sich das Fenster von selbst.
+if errorlevel 1 pause

@@ -54,8 +54,9 @@ body {
   text-align: left; vertical-align: top; }
 .handbuch th { background: #e8edf3; font-weight: 600; }
 .handbuch .rueck { float: right; font-size: .8rem; text-decoration: none;
-  opacity: .3; font-weight: 400; }
-.handbuch .rueck:hover { opacity: 1; }
+  font-weight: 400; color: #64748b; background: #eef2f7; padding: .35rem .6rem;
+  border-radius: 6px; white-space: nowrap; }
+.handbuch .rueck:hover { background: #dbe3ec; color: #1e293b; }
 
 .handbuch-toc ul.inhalt, .handbuch-toc ul.inhalt ul { list-style: none;
   padding-left: 0; margin: 0; }

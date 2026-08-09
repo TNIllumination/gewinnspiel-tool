@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { maskUsername } from "@/lib/audit";
+import { prizeIdForSlot, resolveWinners } from "@/draw/promotion";
 import { Badge, Card, CardTitle, Notice, formatDateTime } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -37,8 +39,22 @@ export default async function PublicGiveawayPage({
   const show = (name: string) =>
     giveaway.maskUsernames ? maskUsername(name) : `@${name}`;
 
-  const winners = draw?.results.filter((r) => r.status !== "REJECTED") ?? [];
-  const winner = winners[0];
+  // Wer belegt welchen Gewinnplatz? Nachrücker erben den Platz des
+  // Abgelehnten — und damit dessen Gewinn.
+  const resolved = draw
+    ? resolveWinners(
+        draw.results.map((r) => ({ id: r.id, rank: r.rank, status: r.status, prizeId: r.prizeId })),
+        draw.winnerSlots,
+      )
+    : null;
+  const resultById = new Map((draw?.results ?? []).map((r) => [r.id, r]));
+  const prizeById = new Map(giveaway.prizes.map((p) => [p.id, p]));
+  const slotCandidates = (draw?.results ?? []).map((r) => ({
+    id: r.id,
+    rank: r.rank,
+    status: r.status,
+    prizeId: r.prizeId,
+  }));
 
   const keywordRule = giveaway.rules.find((r) => r.type === "KEYWORD");
   const mentionsRule = giveaway.rules.find((r) => r.type === "MENTIONS");
@@ -144,34 +160,64 @@ export default async function PublicGiveawayPage({
         </Card>
       ) : null}
 
-      {revealed && winner ? (
+      {revealed && resolved ? (
         <Card>
           <CardTitle>Gewinner</CardTitle>
-          <p className="text-2xl font-bold">{show(winner.entry.username)}</p>
-          {winner.prize ? (
-            <p className="mt-1 text-slate-600">gewinnt: {winner.prize.title}</p>
-          ) : null}
 
-          {winners.length > 1 ? (
-            <div className="mt-4">
+          <ol className="space-y-4">
+            {resolved.winners.map((w) => {
+              const result = w.candidate ? resultById.get(w.candidate.id) : null;
+              if (!result) return null;
+              return (
+                <li key={w.slot}>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">
+                    {w.slot + 1}. Platz
+                    {(() => {
+                      // Der Gewinn gehört zum Platz, nicht zur Person.
+                      const prize = prizeById.get(
+                        prizeIdForSlot(slotCandidates, w.slot) ?? "",
+                      );
+                      return prize ? ` — ${prize.title}` : "";
+                    })()}
+                  </p>
+                  <p className="text-2xl font-bold">{show(result.entry.username)}</p>
+                  {/* Der Kommentar macht nachvollziehbar, womit gewonnen wurde. */}
+                  <blockquote className="mt-2 rounded-r-lg border-l-4 border-slate-300 bg-slate-50 px-4 py-2 text-slate-700">
+                    {result.entry.text}
+                  </blockquote>
+                </li>
+              );
+            })}
+          </ol>
+
+          {resolved.reserves.length > 0 ? (
+            <div className="mt-6 border-t border-slate-200 pt-4">
               <p className="mb-2 text-sm font-medium text-slate-700">Nachrücker</p>
               <ul className="flex flex-wrap gap-2">
-                {winners.slice(1).map((r) => (
-                  <li key={r.id}>
-                    <Badge>{show(r.entry.username)}</Badge>
-                  </li>
-                ))}
+                {resolved.reserves.map((r) => {
+                  const result = resultById.get(r.id);
+                  return result ? (
+                    <li key={r.id}>
+                      <Badge>{show(result.entry.username)}</Badge>
+                    </li>
+                  ) : null;
+                })}
               </ul>
             </div>
           ) : null}
         </Card>
       ) : null}
 
-      <footer className="border-t border-slate-200 pt-6 text-xs text-slate-500">
-        <p>
+      <footer className="flex flex-wrap items-start justify-between gap-4 border-t border-slate-200 pt-6 text-xs text-slate-500">
+        <p className="max-w-xl">
           Diese Aktion steht in keiner Verbindung zu Instagram, TikTok oder YouTube und
-          wird von diesen weder gesponsert noch unterstützt oder organisiert.
+          wird von diesen weder gesponsert noch unterstützt oder organisiert. Mit der
+          Teilnahme stellst du diese Plattformen von jeglicher Haftung frei; Fragen
+          zum Gewinnspiel richte bitte an den Veranstalter, nicht an die Plattform.
         </p>
+        <Link href="/admin" className="shrink-0 underline hover:text-slate-800">
+          Verwaltung
+        </Link>
       </footer>
     </main>
   );

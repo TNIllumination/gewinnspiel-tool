@@ -67,6 +67,23 @@ enum DataRequestStatus {
   DONE
 }
 
+/// Angaben zum Veranstalter. Bewusst nur ein Datensatz (id = "settings").
+///
+/// Die Plattformen verlangen, dass in den Teilnahmebedingungen ein
+/// alleiniger Ansprechpartner benannt wird und Fragen nicht an sie gehen.
+/// Ohne diese Angaben laesst sich kein vollstaendiger Rechtstext erzeugen.
+model Settings {
+  id        String   @id @default("settings")
+  /// Name oder Firma des Veranstalters.
+  organizer String   @default("")
+  /// Kontaktmöglichkeit für Rückfragen der Teilnehmer.
+  contact   String   @default("")
+  /// Basisadresse der veröffentlichten Seiten, z. B.
+  /// https://tnillumination.github.io/gewinnspiele
+  publishBaseUrl String @default("")
+  updatedAt DateTime @updatedAt
+}
+
 /// Der Betreiber. Single-User — bewusst nur ein Datensatz.
 model User {
   id           String   @id @default(cuid())
@@ -100,14 +117,15 @@ model Giveaway {
   title       String
   slug        String   @unique
   description String?
-  platform    Platform
   accountId   String?
   account     Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
 
-  /// Referenz auf den Beitrag, unter dem kommentiert wird.
-  postUrl        String?
-  postExternalId String?
+  /// Ein Gewinnspiel laeuft in der Regel ueber mehrere Plattformen —
+  /// derselbe Beitrag auf Instagram UND TikTok. Alle Teilnahmen landen
+  /// in einem gemeinsamen Lostopf.
+  sources GiveawaySource[]
 
+  /// Teilnahmezeitraum. Kommentare ausserhalb werden abgelehnt.
   startsAt DateTime?
   endsAt   DateTime?
 
@@ -133,6 +151,18 @@ model Giveaway {
   @@index([status])
 }
 
+/// Eine Plattform, auf der dieses Gewinnspiel laeuft, mit dem zugehoerigen
+/// Beitrag. Mehrere Quellen = ein Gewinnspiel, ein Lostopf.
+model GiveawaySource {
+  id         String   @id @default(cuid())
+  giveawayId String
+  giveaway   Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  platform   Platform
+  postUrl    String?
+
+  @@unique([giveawayId, platform])
+}
+
 model Rule {
   id         String   @id @default(cuid())
   giveawayId String
@@ -152,6 +182,11 @@ model Entry {
   giveawayId String
   giveaway   Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
 
+  /// Von welcher Plattform diese Teilnahme stammt. Noetig fuer den
+  /// Profillink bei der Verifikation — und dafuer, dass @anna von TikTok
+  /// und @anna von Instagram als zwei Teilnahmen zaehlen.
+  platform Platform @default(SANDBOX)
+
   /// Kommentar-ID der Plattform, verhindert Doppelimport.
   externalId  String?
   username    String
@@ -159,6 +194,10 @@ model Entry {
   text        String
   commentedAt DateTime
   likeCount   Int      @default(0)
+
+  /// Normalisierte Fassung von Benutzername + Text. Erkennt Dubletten auch
+  /// dann, wenn beim etappenweisen Einfuegen keine Kommentar-ID vorliegt.
+  fingerprint String?
 
   /// Anzahl Lose dieser Teilnahme (Bonuslose erhoehen den Wert).
   lots  Int     @default(1)
@@ -171,6 +210,7 @@ model Entry {
   drawResults DrawResult[]
 
   @@unique([giveawayId, externalId])
+  @@unique([giveawayId, platform, fingerprint])
   @@index([giveawayId, valid])
   @@index([giveawayId, username])
 }
@@ -208,6 +248,11 @@ model Draw {
   entrantsSnapshot Json
   entrantCount     Int
   totalLots        Int
+
+  /// Wie viele der gezogenen Raenge Gewinner sind. Alles darueber sind
+  /// Nachruecker. Wird festgehalten, damit spaetere Aenderungen an den
+  /// Gewinnen die bereits erfolgte Ziehung nicht umdeuten.
+  winnerSlots Int @default(1)
 
   committedAt DateTime  @default(now())
   drawnAt     DateTime?

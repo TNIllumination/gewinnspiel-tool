@@ -1,6 +1,6 @@
 {
   "name": "gewinnspiel-tool",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,7 +10,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "docs": "tsx scripts/build-docs.mts",
-    "update": "node scripts/update.mjs"
+    "update": "node scripts/update.mjs",
+    "passwort-neu": "node scripts/reset-password.mjs"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.9.1",

@@ -2,28 +2,37 @@
 
 import { useState, useTransition } from "react";
 import { Button, Field, Notice, inputClass } from "./ui";
-import type { ImportPreviewResult } from "@/app/admin/actions";
+import type { ImportPreviewResult, StoreResult } from "@/app/admin/actions";
 
 /// Zweistufiger Import: erst zeigen, was erkannt wurde, dann uebernehmen.
-/// Der Parser muss das Format erraten — deshalb gehoert die Sichtkontrolle
-/// vor den Schreibzugriff. Sonst faellt ein Fehlgriff erst auf, wenn die
-/// Teilnehmerliste schon festgeschrieben ist.
+///
+/// TikTok laedt Kommentare nach und entfernt weit weg gescrollte wieder aus
+/// der Seite — man erwischt beim Kopieren also immer nur einen Ausschnitt.
+/// Deshalb ist Einlesen in Etappen der Normalfall, nicht die Ausnahme:
+/// scrollen, kopieren, einfuegen, wiederholen. Schon Vorhandenes wird
+/// uebersprungen, damit niemand doppelt im Lostopf landet.
 export function ManualImport({
   preview,
   confirm,
-  platformLabel,
+  platforms,
 }: {
   preview: (raw: string) => Promise<ImportPreviewResult>;
-  confirm: (raw: string) => Promise<void>;
-  platformLabel: string;
+  confirm: (platform: string, raw: string) => Promise<StoreResult>;
+  platforms: { id: string; label: string }[];
 }) {
   const [raw, setRaw] = useState("");
+  const [platform, setPlatform] = useState(platforms[0]?.id ?? "TIKTOK");
   const [result, setResult] = useState<ImportPreviewResult | null>(null);
+  const [saved, setSaved] = useState<StoreResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const aktivesLabel =
+    platforms.find((p) => p.id === platform)?.label ?? "der Plattform";
+
   const check = () => {
     setError(null);
+    setSaved(null);
     startTransition(async () => {
       try {
         setResult(await preview(raw));
@@ -37,7 +46,8 @@ export function ManualImport({
     setError(null);
     startTransition(async () => {
       try {
-        await confirm(raw);
+        const outcome = await confirm(platform, raw);
+        setSaved(outcome);
         setRaw("");
         setResult(null);
       } catch (e) {
@@ -50,27 +60,55 @@ export function ManualImport({
     <div className="space-y-4">
       <details className="rounded-lg border border-slate-200 bg-slate-50 p-4">
         <summary className="cursor-pointer text-sm font-medium text-slate-800">
-          So kommst du an die {platformLabel}-Kommentare
+          So kommst du an die Kommentare — und warum in Etappen
         </summary>
         <ol className="mt-3 list-inside list-decimal space-y-1 text-sm text-slate-700">
           <li>Beitrag im <strong>Browser am Rechner</strong> öffnen — in der App lässt sich nichts kopieren.</li>
-          <li>Kommentarbereich öffnen und <strong>bis ganz unten scrollen</strong>, bis alle geladen sind.</li>
-          <li>Mit der Maus über die Kommentare ziehen und <strong>Strg+C</strong> (Mac: Cmd+C).</li>
-          <li>Hier einfügen und <strong>Prüfen</strong> — du siehst erst, was erkannt wurde.</li>
+          <li>Kommentarbereich öffnen und ein Stück <strong>nach unten scrollen</strong>, bis neue nachgeladen sind.</li>
+          <li>Über die Kommentare ziehen und <strong>Strg+C</strong> (Mac: Cmd+C).</li>
+          <li>Hier einfügen, <strong>Prüfen</strong>, <strong>Übernehmen</strong>.</li>
+          <li><strong>Weiter scrollen und wiederholen</strong>, bis nichts Neues mehr dazukommt.</li>
         </ol>
         <p className="mt-3 text-xs text-slate-600">
+          Warum mehrfach? TikTok hält immer nur einen Ausschnitt der Kommentare in
+          der Seite und wirft weit weg gescrollte wieder heraus — auf einen Schlag
+          bekommt man sie deshalb nicht. Doppelt Eingefügtes erkennt das Tool und
+          überspringt es, du kannst dich also ruhig überlappen.
+        </p>
+        <p className="mt-2 text-xs text-slate-600">
           Datumsangaben, „Antworten" und Like-Zahlen werden automatisch aussortiert.
           Auch eine Tabelle mit Kopfzeile (<code>Benutzer;Kommentar;Datum</code>) wird gelesen.
         </p>
       </details>
 
-      <Field label="Kommentare einfügen">
+      {platforms.length > 1 ? (
+        <Field label="Von welcher Plattform stammen diese Kommentare?">
+          <select
+            className={inputClass}
+            value={platform}
+            onChange={(e) => {
+              setPlatform(e.target.value);
+              setResult(null);
+              setSaved(null);
+            }}
+          >
+            {platforms.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      ) : null}
+
+      <Field label={`Kommentare von ${aktivesLabel} einfügen`}>
         <textarea
           className={`${inputClass} h-40 font-mono text-xs`}
           value={raw}
           onChange={(e) => {
             setRaw(e.target.value);
             setResult(null);
+            setSaved(null);
           }}
           placeholder={"anna_berg\nIch bin dabei @ben @carla\nAntworten\n12"}
         />
@@ -80,6 +118,23 @@ export function ManualImport({
         <p role="alert" className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
           {error}
         </p>
+      ) : null}
+
+      {saved ? (
+        <Notice
+          title={
+            saved.added === 0
+              ? "Nichts Neues dabei"
+              : `${saved.added} neue ${saved.added === 1 ? "Teilnahme" : "Teilnahmen"} übernommen`
+          }
+        >
+          {saved.skipped > 0
+            ? `${saved.skipped} ${saved.skipped === 1 ? "war" : "waren"} schon vorhanden und ${saved.skipped === 1 ? "wurde" : "wurden"} übersprungen.`
+            : "Alles davon war neu."}
+          {saved.added === 0
+            ? " Scroll bei der Plattform weiter nach unten und füge den nächsten Ausschnitt ein."
+            : ""}
+        </Notice>
       ) : null}
 
       {result ? (

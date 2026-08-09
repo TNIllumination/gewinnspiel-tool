@@ -39,6 +39,8 @@ const PROTECTED = [
   ".env",
   ".env.local",
   "sicherung",
+  // Selbst erzeugte Seiten fuer GitHub Pages — die darf ein Update nie loeschen.
+  "veroeffentlichung",
   "node_modules",
   ".git",
   ".next",

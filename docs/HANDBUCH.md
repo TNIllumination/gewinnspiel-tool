@@ -53,7 +53,7 @@ das Fenster *ist* der Server.
 du siehst den kompletten Ablauf, und es kann nichts schiefgehen.
 
 1. **Neues Gewinnspiel** (rechts im Dashboard): Titel eintragen, als Plattform
-   **Testmodus** wählen, **Anlegen**
+   **Testmodus** ankreuzen, **Anlegen**
 2. **Teilnahmen einlesen** → *250 Testteilnehmer erzeugen*
 3. **Teilnahmebedingungen** → ein Wort eintragen, speichern
 4. **Gewinne** → einen Gewinn hinzufügen
@@ -62,28 +62,57 @@ du siehst den kompletten Ablauf, und es kann nichts schiefgehen.
 
 Danach machst du dasselbe mit deinem echten Beitrag.
 
-> Bleib beim ersten Mal bei **einem** Gewinn. Mehrere Gewinne funktionieren derzeit
-> noch nicht richtig — siehe „Bekannte Einschränkungen".
+> Du kannst auch mehrere Gewinne anlegen. Für jeden wird ein eigener Gewinner
+> gezogen, Nachrücker kommen zusätzlich obendrauf.
 
 ## Teilnahmen einlesen
 
-### TikTok
+### TikTok — warum du in Etappen einlesen musst
 
 TikTok gibt Kommentare **nicht** über eine Schnittstelle heraus (Näheres unter
-„Was die Plattformen nicht hergeben"). Deshalb kopierst du sie:
+„Was die Plattformen nicht hergeben"). Du kopierst sie also.
+
+Dabei stößt du auf etwas, das zunächst wie ein Fehler aussieht: **Es kommen nie alle
+Kommentare mit.** Bei 98 Kommentaren landen vielleicht 14 in der Zwischenablage.
+
+Das liegt nicht an dir. TikTok hält immer nur einen Ausschnitt der Kommentare in der
+Seite und wirft weit weg gescrollte wieder heraus. Markieren erfasst deshalb nur das
+gerade Sichtbare — mit keinem Trick mehr.
+
+**Die Lösung ist Einlesen in Etappen:**
 
 1. Beitrag im **Browser am Rechner** öffnen — in der App lässt sich nichts kopieren
-2. Kommentarbereich öffnen und **bis ganz unten scrollen**, bis alle geladen sind
-3. Mit der Maus über die Kommentare ziehen und **Strg+C** drücken (Mac: Cmd+C)
-4. Im Tool einfügen und auf **Prüfen** klicken
+2. Kommentarbereich öffnen, ein Stück **nach unten scrollen**
+3. Über die Kommentare ziehen, **Strg+C** (Mac: Cmd+C)
+4. Im Tool einfügen → **Prüfen** → **Übernehmen**
+5. **Weiter scrollen und wiederholen**, bis nichts Neues mehr dazukommt
 
-Datumsangaben, „Antworten" und Like-Zahlen werden dabei automatisch aussortiert.
+Das Tool erkennt, was du schon eingelesen hast, und überspringt es. Du darfst dich
+also ruhig überlappen — nach jedem Übernehmen steht da, wie viele davon neu waren.
+Kommt „0 neu", hast du alles.
+
+Datumsangaben, „Antworten" und Like-Zahlen werden automatisch aussortiert.
 
 ### Instagram und YouTube
 
-Genauso wie bei TikTok. Später sollen Instagram und YouTube die Kommentare
-automatisch abholen — dafür braucht Instagram allerdings eine Freigabe von Meta,
-die einige Wochen dauert.
+Genauso wie bei TikTok, meist aber angenehmer: Instagram lädt über „Weitere
+Kommentare laden" nach und **behält** das Geladene in der Seite. Oft bekommst du
+dort alles auf einmal.
+
+Später sollen Instagram und YouTube die Kommentare automatisch abholen — dafür
+braucht Instagram allerdings eine Freigabe von Meta, die einige Wochen dauert.
+
+### Mehrere Plattformen in einem Gewinnspiel
+
+Ein Gewinnspiel kann gleichzeitig auf Instagram, TikTok und YouTube laufen. Beim
+Einlesen wählst du, von welcher Plattform der Ausschnitt stammt. Alle Teilnahmen
+landen in **einem gemeinsamen Lostopf**.
+
+Wichtig: **Wer auf mehreren Plattformen kommentiert, ist mehrfach im Topf.** Das ist
+Absicht — so kannst du „kommentier auch drüben für mehr Chancen" ansagen und
+gewinnst Reichweite auf beiden Kanälen. Ob `@anna` auf TikTok dieselbe Person ist
+wie `@anna` auf Instagram, kann ohnehin niemand feststellen. Der Punkt steht
+automatisch in den Teilnahmebedingungen.
 
 ### Warum es eine Vorschau gibt
 
@@ -280,13 +309,49 @@ Update landet eine datierte Kopie im Ordner `sicherung`.
 
 Ohne Internet wird die Prüfung stillschweigend übersprungen.
 
-## Bekannte Einschränkungen
+## Teilnahmebedingungen veröffentlichen
 
-- **Mehrere Gewinne** funktionieren noch nicht richtig: Nachrücker bekommen
-  fälschlich Preise zugeteilt. Mit **einem** Gewinn ist alles korrekt. Die Korrektur
-  kommt in einer der nächsten Fassungen.
-- Die öffentliche Gewinner-Seite ist nur auf deinem Rechner erreichbar. Damit
-  Teilnehmer sie selbst aufrufen können, bräuchte es einen Server im Internet.
+Zwei Dinge musst du bei jedem Gewinnspiel dazuschreiben — beides verlangen die
+Plattformen und das Gesetz:
+
+1. Dass die Aktion **in keiner Verbindung** zu Instagram/TikTok steht
+2. Dass Teilnehmer die Plattform **von jeglicher Haftung freistellen**
+3. Dass **du allein Ansprechpartner** bist und Fragen nicht an die Plattform gehen
+
+Dazu kommt: Teilnahmebedingungen müssen **leicht zugänglich** sein (§ 6 DDG).
+
+Das Tool nimmt dir das ab. Trag einmalig unter **Einstellungen** deinen Namen und
+eine Kontaktmöglichkeit ein, dann erzeugt der Knopf **Texte erzeugen** im Gewinnspiel:
+
+- eine **Kurzfassung** für die Bildunterschrift des Beitrags, mit allen drei
+  Pflichtbestandteilen und einem Link auf die ausführliche Fassung
+- die **vollständigen Teilnahmebedingungen** — erzeugt aus deinen echten Regeln,
+  nicht aus einer Vorlage
+- den **Nachweis-Text** zur Ziehung zum Einfügen als Kommentar
+
+> Der Text gehört in die **Bildunterschrift**, nicht in einen Kommentar: TikTok-
+> Kommentare fassen nur etwa 150 Zeichen. Das Tool zählt mit und warnt, wenn es
+> zu lang wird.
+
+### Kostenlos online stellen mit GitHub Pages
+
+Damit Teilnehmer die ausführliche Fassung auch aufrufen können, brauchst du eine
+öffentliche Adresse — die kostet aber nichts:
+
+1. Auf GitHub ein neues öffentliches Repository anlegen, z. B. `gewinnspiele`
+2. Unter **Settings → Pages** die Veröffentlichung einschalten
+3. Im Tool auf **Seite für GitHub erzeugen** — die Datei landet im Ordner
+   `veroeffentlichung`
+4. Auf GitHub **Add file → Upload files**, Datei hineinziehen, **Commit changes**
+5. Die Adresse unter **Einstellungen** eintragen, dann baut das Tool den Link
+   für den Beitrag automatisch
+
+Lade zweimal hoch: vor dem Start mit den Bedingungen, nach der Ziehung mit dem
+Ergebnis. Gleicher Dateiname, gleiche Adresse — der Link im Beitrag bleibt gültig.
+
+Auf der Seite stehen nach der Ziehung auch Prüfsumme, Zufallszahl und die
+vollständige Teilnehmerliste. **Erst dadurch kann jemand die Ziehung wirklich
+nachrechnen** — sonst bliebe die faire Ziehung eine Behauptung.
 
 ## Wenn etwas klemmt
 
@@ -324,3 +389,6 @@ Passiert beim Start automatisch, deine Daten bleiben erhalten.
 Plattform abrufen dürfen. Was dort nicht vorgesehen ist, geht schlicht nicht.
 
 **Testmodus** — Betriebsart mit erfundenen Teilnehmern zum gefahrlosen Ausprobieren.
+
+**Gewinnplatz** — Ein Platz mit eigenem Gewinn (1., 2., 3. Platz). Der Gewinn hängt
+am Platz: Rückt jemand auf Platz 1 nach, bekommt er den Hauptgewinn.

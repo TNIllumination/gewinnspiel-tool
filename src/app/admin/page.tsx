@@ -4,8 +4,9 @@ import packageJson from "../../../package.json";
 import { db } from "@/lib/db";
 import { getSessionUserId } from "@/lib/auth";
 import { PLATFORMS, type PlatformId } from "@/platforms/base";
-import { createGiveaway, logout } from "./actions";
+import { createGiveaway, logout, shutdownServer } from "./actions";
 import { ActionForm } from "@/components/action-form";
+import { BeendenButton } from "@/components/beenden-button";
 import {
   Badge,
   Button,
@@ -20,6 +21,29 @@ import {
 // Die Fassungsnummer steht in der package.json — eine Quelle, kein zweiter Ort,
 // der beim Aktualisieren vergessen werden könnte.
 const VERSION = process.env.npm_package_version ?? packageJson.version;
+
+const NEW_GIVEAWAY_PLATFORMS = [
+  {
+    id: "SANDBOX",
+    label: "Testmodus",
+    hint: "Erfundene Teilnehmer zum gefahrlosen Ausprobieren.",
+  },
+  {
+    id: "INSTAGRAM",
+    label: "Instagram",
+    hint: "Kommentare einfügen — automatisch erst nach der Meta-Freigabe.",
+  },
+  {
+    id: "TIKTOK",
+    label: "TikTok",
+    hint: "Kommentare einfügen, in Etappen möglich.",
+  },
+  {
+    id: "YOUTUBE",
+    label: "YouTube",
+    hint: "Kommentare einfügen.",
+  },
+] as const;
 
 const STATUS_LABELS: Record<string, { label: string; tone: "neutral" | "info" | "good" | "warn" }> = {
   DRAFT: { label: "Entwurf", tone: "neutral" },
@@ -36,7 +60,10 @@ export default async function AdminPage() {
 
   const giveaways = await db.giveaway.findMany({
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { entries: true } } },
+    include: {
+      sources: { orderBy: { platform: "asc" } },
+      _count: { select: { entries: true } },
+    },
   });
 
   return (
@@ -58,12 +85,19 @@ export default async function AdminPage() {
             >
               Öffentliche Seite
             </Link>
+            <Link
+              href="/admin/einstellungen"
+              className="text-sm text-slate-600 underline hover:text-slate-900"
+            >
+              Einstellungen
+            </Link>
             <span className="text-xs text-slate-400">Fassung {VERSION}</span>
             <form action={logout}>
               <Button variant="secondary" type="submit">
                 Abmelden
               </Button>
             </form>
+            <BeendenButton beenden={shutdownServer} />
           </div>
         }
       />
@@ -87,8 +121,10 @@ export default async function AdminPage() {
                       <div>
                         <h3 className="font-semibold text-slate-900">{g.title}</h3>
                         <p className="mt-1 text-sm text-slate-600">
-                          {PLATFORMS[g.platform as PlatformId].label} ·{" "}
-                          {g._count.entries} Teilnahmen · angelegt{" "}
+                          {g.sources
+                            .map((s) => PLATFORMS[s.platform as PlatformId].label)
+                            .join(" + ") || "keine Plattform"}{" "}
+                          · {g._count.entries} Teilnahmen · angelegt{" "}
                           {formatDateTime(g.createdAt)}
                         </p>
                       </div>
@@ -118,18 +154,58 @@ export default async function AdminPage() {
                 />
               </Field>
 
-              <Field label="Plattform">
-                <select className={inputClass} name="platform" defaultValue="SANDBOX">
-                  <option value="SANDBOX">Testmodus (erfundene Teilnehmer)</option>
-                  <option value="INSTAGRAM">Instagram</option>
-                  <option value="TIKTOK">TikTok</option>
-                  <option value="YOUTUBE">YouTube</option>
-                </select>
+              <fieldset>
+                <legend className="mb-1 block text-sm font-medium text-slate-800">
+                  Plattformen
+                </legend>
+                <p className="mb-2 text-xs text-slate-500">
+                  Mehrere möglich — alle Teilnahmen landen in einem gemeinsamen
+                  Lostopf. Wer auf zwei Plattformen kommentiert, ist zweimal dabei.
+                </p>
+                <div className="space-y-2">
+                  {NEW_GIVEAWAY_PLATFORMS.map(({ id, label, hint }) => (
+                    <label key={id} className="flex items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        name={`platform_${id}`}
+                        defaultChecked={id === "SANDBOX"}
+                        className="mt-0.5 size-4"
+                      />
+                      <span>
+                        {label}
+                        <span className="block text-xs text-slate-500">{hint}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              <Field
+                label="Links zu den Beiträgen"
+                hint="Optional. Hilft später beim Prüfen und steht in den Teilnahmebedingungen."
+              >
+                <div className="space-y-2">
+                  {NEW_GIVEAWAY_PLATFORMS.filter((p) => p.id !== "SANDBOX").map(
+                    ({ id, label }) => (
+                      <input
+                        key={id}
+                        className={inputClass}
+                        name={`postUrl_${id}`}
+                        placeholder={`${label}: https://…`}
+                      />
+                    ),
+                  )}
+                </div>
               </Field>
 
-              <Field label="Link zum Beitrag" hint="Optional, hilft später beim Prüfen.">
-                <input className={inputClass} name="postUrl" placeholder="https://…" />
-              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Start" hint="Optional.">
+                  <input className={inputClass} type="datetime-local" name="startsAt" />
+                </Field>
+                <Field label="Einsendeschluss" hint="Später zählt nicht mehr.">
+                  <input className={inputClass} type="datetime-local" name="endsAt" />
+                </Field>
+              </div>
 
               <Field
                 label="Nachrücker"
