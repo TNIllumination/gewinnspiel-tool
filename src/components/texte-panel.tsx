@@ -10,17 +10,29 @@ import type { TextsResult } from "@/app/admin/actions";
 /// Bewusst auf Knopfdruck statt beim Seitenaufbau: Ohne Veranstalterangaben
 /// gäbe es sonst bei jedem Aufruf einen Fehler, statt eines Hinweises an
 /// der Stelle, wo er hingehört.
+interface DateiErgebnis {
+  fileName: string;
+  url: string | null;
+  hochgeladen?: boolean;
+  commitUrl?: string;
+  pagesUrl?: string;
+  hinweis?: string;
+}
+
 export function TextePanel({
   texte,
   veroeffentlichen,
   slug,
+  hochladen,
 }: {
   texte: () => Promise<TextsResult>;
-  veroeffentlichen: () => Promise<{ fileName: string; url: string | null }>;
+  veroeffentlichen: () => Promise<DateiErgebnis>;
   slug: string;
+  /// Ist ein Zugangsschlüssel hinterlegt, geht die Datei gleich online.
+  hochladen: boolean;
 }) {
   const [result, setResult] = useState<TextsResult | null>(null);
-  const [datei, setDatei] = useState<{ fileName: string; url: string | null } | null>(null);
+  const [datei, setDatei] = useState<DateiErgebnis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -52,9 +64,21 @@ export function TextePanel({
           type="button"
           variant="secondary"
           disabled={pending}
-          onClick={() => run(async () => setDatei(await veroeffentlichen()))}
+          onClick={() => {
+            // Ab hier stehen die Teilnehmernamen im Netz. Das soll ein
+            // bewusster Klick sein, kein versehentlicher.
+            if (
+              hochladen &&
+              !window.confirm(
+                "Damit werden die Seite und die Teilnehmerliste öffentlich sichtbar. Fortfahren?",
+              )
+            ) {
+              return;
+            }
+            run(async () => setDatei(await veroeffentlichen()));
+          }}
         >
-          Seite für GitHub erzeugen
+          {hochladen ? "Veröffentlichen und hochladen" : "Seite für GitHub erzeugen"}
         </Button>
       </div>
 
@@ -65,35 +89,57 @@ export function TextePanel({
       ) : null}
 
       {datei ? (
-        <Notice title={`Datei erzeugt: ${datei.fileName}`}>
-          Sie liegt im Ordner <code>veroeffentlichung</code> neben start.bat —
-          zusammen mit <code>index.html</code>, der Übersichtsseite, die dabei
-          neu geschrieben wurde.
-          <ol className="mt-2 list-inside list-decimal space-y-1">
-            <li>Auf GitHub dein Veröffentlichungs-Repo öffnen</li>
-            <li>
-              <strong>Add file → Upload files</strong>, <strong>beide</strong>{" "}
-              Dateien hineinziehen
-            </li>
-            <li>Unten auf <strong>Commit changes</strong></li>
-          </ol>
-          <p className="mt-2">
-            Läuft GitHub Pages noch nicht: Erst hochladen, <strong>dann</strong>{" "}
-            unter <em>Settings → Pages</em> einschalten. Bei einem leeren
-            Repository bietet GitHub dort keinen Branch an.
-          </p>
-          {datei.url ? (
+        <Notice
+          title={
+            datei.hochgeladen
+              ? `Hochgeladen: ${datei.fileName}`
+              : `Datei erzeugt: ${datei.fileName}`
+          }
+        >
+          {datei.hochgeladen ? (
+            <>
+              <p>
+                Die Seite, die Übersicht und die Datenschutzerklärung liegen jetzt
+                in deinem Repository — in einem Commit.
+              </p>
+              {datei.pagesUrl ? (
+                <p className="mt-2">
+                  Erreichbar unter:{" "}
+                  <span className="font-mono text-xs break-all">{datei.pagesUrl}</span>
+                  {" "}(nach dem ersten Mal dauert es ein bis zwei Minuten)
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <p>
+                Sie liegt im Ordner <code>veroeffentlichung</code> neben start.bat —
+                zusammen mit <code>index.html</code> und{" "}
+                <code>datenschutz.html</code>.
+              </p>
+              <ol className="mt-2 list-inside list-decimal space-y-1">
+                <li>Auf GitHub dein Veröffentlichungs-Repo öffnen</li>
+                <li>
+                  <strong>Add file → Upload files</strong>, <strong>alle</strong>{" "}
+                  Dateien hineinziehen
+                </li>
+                <li>Unten auf <strong>Commit changes</strong></li>
+              </ol>
+              <p className="mt-2">
+                Das geht auch auf Knopfdruck: unter <strong>Einstellungen</strong>{" "}
+                einen Zugangsschlüssel hinterlegen.
+              </p>
+            </>
+          )}
+          {datei.hinweis ? (
+            <p className="mt-2 font-medium">{datei.hinweis}</p>
+          ) : null}
+          {!datei.hochgeladen && datei.url ? (
             <p className="mt-2">
-              Danach erreichbar unter:{" "}
+              Nach dem Hochladen erreichbar unter:{" "}
               <span className="font-mono text-xs break-all">{datei.url}</span>
             </p>
-          ) : (
-            <p className="mt-2">
-              Trag unter <strong>Einstellungen</strong> die Adresse deiner
-              veröffentlichten Seiten ein, dann baut das Tool den fertigen Link
-              für den Beitrag.
-            </p>
-          )}
+          ) : null}
         </Notice>
       ) : null}
 

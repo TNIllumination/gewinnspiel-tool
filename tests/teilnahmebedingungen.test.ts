@@ -208,3 +208,36 @@ describe("Impressum", () => {
     );
   });
 });
+
+describe("Eigene Bedingungen", () => {
+  const eigen = giveaway({
+    customTerms: "Übergabe nur vor Ort auf dem Festival\n• Versand nur innerhalb Deutschlands\n\n",
+  });
+
+  it("erscheinen als eigener Abschnitt in der Langfassung", () => {
+    const text = buildTerms(eigen, WHO);
+    expect(text).toContain("Weitere Bedingungen");
+    expect(text).toContain("• Übergabe nur vor Ort auf dem Festival");
+    expect(text).toContain("• Versand nur innerhalb Deutschlands");
+  });
+
+  // Der Pflichttext der Plattformen bleibt der Schlussstein.
+  it("stehen vor dem Hinweis zu den Plattformen", () => {
+    const text = buildTerms(eigen, WHO);
+    expect(text.indexOf("Weitere Bedingungen")).toBeLessThan(
+      text.indexOf("Hinweis zu den Plattformen"),
+    );
+  });
+
+  it("kommen auch in die Kurzfassung", () => {
+    expect(buildShortTerms(eigen, WHO).text).toContain("• Übergabe nur vor Ort");
+  });
+
+  it("räumen leere Zeilen und doppelte Aufzählungszeichen weg", () => {
+    expect(buildTerms(eigen, WHO)).not.toContain("• • ");
+  });
+
+  it("erzeugen ohne Eingabe keinen leeren Abschnitt", () => {
+    expect(buildTerms(giveaway(), WHO)).not.toContain("Weitere Bedingungen");
+  });
+});

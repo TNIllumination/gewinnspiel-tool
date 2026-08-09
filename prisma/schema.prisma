@@ -84,6 +84,14 @@ model Settings {
   /// Adresse des Impressums. Die veroeffentlichten Seiten sind ein selbst
   /// betriebenes Online-Angebot und muessen es erreichbar machen (§ 5 DDG).
   impressumUrl   String @default("")
+  /// Ziel-Repository fuers Hochladen, z. B. "TNIllumination/gewinnspiele".
+  githubRepo     String @default("")
+  /// Zugangsschluessel, AES-256-GCM-verschluesselt. Verlaesst den Rechner
+  /// nur Richtung GitHub und wird nie an den Browser zurueckgegeben.
+  githubToken    String @default("")
+  /// Wie lange eine veroeffentlichte Seite online bleibt. Steht so in der
+  /// Datenschutzerklaerung — eine Angabe, die Art. 13 DSGVO verlangt.
+  publishRetentionMonths Int @default(6)
   updatedAt DateTime @updatedAt
 }
 
@@ -134,6 +142,10 @@ model Giveaway {
 
   /// Anzahl der Nachruecker, die zusaetzlich zum Gewinner gezogen werden.
   substituteCount Int @default(5)
+
+  /// Eigene Bedingungen, eine je Zeile — etwa "Uebergabe vor Ort".
+  /// Je Gewinnspiel, nicht global: Sonderregeln gelten selten fuer alle.
+  customTerms String?
 
   status GiveawayStatus @default(DRAFT)
 

@@ -95,13 +95,25 @@ ${
 Prüfsumme, Zufallszahl und die vollständige Teilnehmerliste zum Nachrechnen.</p>
 `;
 
-  return `<!doctype html>
-<html lang="de">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(input.title)} — Teilnahmebedingungen</title>
-<style>
+  return seite({
+    titel: `${input.title} — Teilnahmebedingungen`,
+    inhalt: `
+<h1>${escapeHtml(input.title)}</h1>
+${winnerBlock}
+<h2 id="bedingungen">Teilnahmebedingungen</h2>
+<div class="bedingungen">${escapeHtml(input.terms)}</div>
+${listBlock}`,
+    fuss: fusszeile(input),
+  });
+}
+
+/// Das gemeinsame Stylesheet aller erzeugten Seiten.
+///
+/// Eingebettet, weil die Seiten in sich geschlossen sein sollen: kein
+/// Nachladen von fremden Servern. Das ist nicht nur Bequemlichkeit — es ist
+/// der Grund, warum die Datenschutzerklaerung „keine fremden Inhalte" sagen
+/// darf, ohne zu luegen.
+const STIL = `
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
   body { margin: 0 auto; padding: 2rem 1.25rem 5rem; max-width: 44rem;
@@ -127,33 +139,100 @@ Prüfsumme, Zufallszahl und die vollständige Teilnehmerliste zum Nachrechnen.</
     background: #f1f5f9; border-radius: 0 6px 6px 0; }
   ol.gewinner { padding-left: 1.3rem; }
   ol.gewinner li { margin: 1rem 0; }
+  .unter { color: #64748b; margin: 0 0 2rem; }
+  ul.gewinnspiele { list-style: none; padding: 0; margin: 0; }
+  ul.gewinnspiele li { background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: .75rem; }
+  ul.gewinnspiele a { font-size: 1.1rem; font-weight: 600; color: #1d4ed8;
+    text-decoration: none; }
+  ul.gewinnspiele a:hover { text-decoration: underline; }
+  .zustand { display: block; font-size: .85rem; color: #64748b; margin-top: .2rem; }
+  .leer { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 1.25rem; color: #64748b; }
+  .hinweis { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0;
+    font-size: .85rem; color: #64748b; }
+  a { color: #1d4ed8; }
   footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0;
     font-size: .85rem; color: #64748b; }
   @media (prefers-color-scheme: dark) {
     body { color: #e2e8f0; background: #0f172a; }
     h2 { border-top-color: #334155; }
     code { background: #1e293b; }
-    .bedingungen { background: #1e293b; border-color: #334155; }
+    .bedingungen, ul.gewinnspiele li, .leer { background: #1e293b; border-color: #334155; }
     blockquote { background: #1e293b; border-left-color: #475569; }
     dt { color: #94a3b8; }
-    footer { border-top-color: #334155; }
-  }
+    a, ul.gewinnspiele a { color: #93c5fd; }
+    footer, .hinweis { border-top-color: #334155; }
+  }`;
+
+/// Der gemeinsame Rahmen. Alle drei Seitenarten sollen zusammenpassen —
+/// sie liegen schliesslich unter derselben Adresse nebeneinander.
+function seite(input: { titel: string; inhalt: string; fuss: string }): string {
+  return `<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(input.titel)}</title>
+<style>${STIL}
 </style>
 </head>
 <body>
-
-<h1>${escapeHtml(input.title)}</h1>
-${winnerBlock}
-<h2 id="bedingungen">Teilnahmebedingungen</h2>
-<div class="bedingungen">${escapeHtml(input.terms)}</div>
-${listBlock}
+${input.inhalt}
 <footer>
-  Veranstalter: ${escapeHtml(input.organizer)} · Kontakt: ${escapeHtml(input.contact)}${impressumLink(input.impressumUrl)}
+  ${input.fuss}
 </footer>
 
 </body>
 </html>
 `;
+}
+
+/// Fusszeile mit den Pflichtverweisen.
+///
+/// Impressum (§ 5 DDG) und Datenschutzerklaerung (Art. 13 DSGVO) muessen von
+/// jeder Seite aus erreichbar sein, nicht nur von der Startseite.
+function fusszeile(input: {
+  organizer: string;
+  contact: string;
+  impressumUrl?: string | null;
+  /// Auf der Datenschutzseite selbst waere ein Verweis auf sie sinnlos.
+  ohneDatenschutz?: boolean;
+}): string {
+  const teile = [
+    `Veranstalter: ${escapeHtml(input.organizer)}`,
+    `Kontakt: ${escapeHtml(input.contact)}`,
+  ];
+  const impressum = input.impressumUrl?.trim();
+  if (impressum) {
+    teile.push(
+      `<a href="${escapeHtml(impressum)}" target="_blank" rel="noreferrer">Impressum</a>`,
+    );
+  }
+  if (!input.ohneDatenschutz) {
+    teile.push(`<a href="datenschutz.html">Datenschutz</a>`);
+  }
+  return teile.join(" · ");
+}
+
+/// Die Datenschutzerklaerung als eigene Seite.
+///
+/// Bewusst eine eigene Datei statt eines Abschnitts auf jeder Seite: Sie muss
+/// unter einer festen Adresse dauerhaft erreichbar sein, auch wenn ein
+/// einzelnes Gewinnspiel laengst weg ist.
+export function buildPrivacyPage(input: {
+  text: string;
+  organizer: string;
+  contact: string;
+  impressumUrl?: string | null;
+}): string {
+  return seite({
+    titel: `Datenschutzerklärung — ${input.organizer}`,
+    inhalt: `
+<h1>Datenschutzerklärung</h1>
+<div class="bedingungen">${escapeHtml(input.text)}</div>`,
+    fuss: fusszeile({ ...input, ohneDatenschutz: true }),
+  });
 }
 
 /// Ergaenzt ein fehlendes `https://`.
@@ -167,14 +246,6 @@ export function withScheme(url: string): string {
   // mailto:, tel: und Konsorten bleiben unberuehrt.
   if (/^[a-z][a-z0-9+.-]*:/i.test(clean)) return clean;
   return `https://${clean}`;
-}
-
-/// Impressum-Verweis fuer die Fusszeile. Leer, wenn keines hinterlegt ist —
-/// die Einschaetzung, ob eines noetig ist, gehoert dem Betreiber.
-function impressumLink(url?: string | null): string {
-  const clean = url?.trim();
-  if (!clean) return "";
-  return ` · <a href="${escapeHtml(clean)}" target="_blank" rel="noreferrer">Impressum</a>`;
 }
 
 export interface IndexEntry {
@@ -213,42 +284,9 @@ ${input.entries
   .join("\n")}
 </ul>`;
 
-  return `<!doctype html>
-<html lang="de">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gewinnspiele — ${escapeHtml(input.organizer)}</title>
-<style>
-  :root { color-scheme: light dark; }
-  * { box-sizing: border-box; }
-  body { margin: 0 auto; padding: 2rem 1.25rem 5rem; max-width: 44rem;
-    font: 17px/1.7 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    color: #1e293b; background: #f8fafc; overflow-wrap: break-word; }
-  h1 { font-size: 1.9rem; margin: 0 0 .5rem; }
-  .unter { color: #64748b; margin: 0 0 2rem; }
-  ul.gewinnspiele { list-style: none; padding: 0; margin: 0; }
-  ul.gewinnspiele li { background: #fff; border: 1px solid #e2e8f0;
-    border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: .75rem; }
-  ul.gewinnspiele a { font-size: 1.1rem; font-weight: 600; color: #1d4ed8;
-    text-decoration: none; }
-  ul.gewinnspiele a:hover { text-decoration: underline; }
-  .zustand { display: block; font-size: .85rem; color: #64748b; margin-top: .2rem; }
-  .leer { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
-    padding: 1.25rem; color: #64748b; }
-  .hinweis { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0;
-    font-size: .85rem; color: #64748b; }
-  a { color: #1d4ed8; }
-  @media (prefers-color-scheme: dark) {
-    body { color: #e2e8f0; background: #0f172a; }
-    ul.gewinnspiele li, .leer { background: #1e293b; border-color: #334155; }
-    a, ul.gewinnspiele a { color: #93c5fd; }
-    .hinweis { border-top-color: #334155; }
-  }
-</style>
-</head>
-<body>
-
+  return seite({
+    titel: `Gewinnspiele — ${escapeHtml(input.organizer)}`,
+    inhalt: `
 <h1>Gewinnspiele</h1>
 <p class="unter">von ${escapeHtml(input.organizer)}</p>
 
@@ -266,10 +304,7 @@ ${liste}
     nicht an die Plattform, sondern an ${escapeHtml(input.organizer)}
     (${escapeHtml(input.contact)}).
   </p>
-  <p>Veranstalter: ${escapeHtml(input.organizer)}${impressumLink(input.impressumUrl)}</p>
-</div>
-
-</body>
-</html>
-`;
+</div>`,
+    fuss: fusszeile(input),
+  });
 }

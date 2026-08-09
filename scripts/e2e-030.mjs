@@ -78,6 +78,17 @@ try {
   await page.getByRole("button", { name: "Übersichtsseite erzeugen" }).click();
   await page.waitForTimeout(2000);
   const uebersicht = readFileSync("veroeffentlichung/index.html", "utf8");
+  // Ohne Zugangsschlüssel bleibt der Weg von Hand — nichts darf ins Netz gehen.
+  const datenschutz = readFileSync("veroeffentlichung/datenschutz.html", "utf8");
+  if (!datenschutz.includes("Art. 6 Abs. 1 lit. f DSGVO")) {
+    no("Datenschutzerklärung", "Rechtsgrundlagen fehlen");
+  } else if (!uebersicht.includes('href="datenschutz.html"')) {
+    no("Datenschutzerklärung", "im Fußbereich der Übersicht nicht verlinkt");
+  } else if (uebersicht.includes('href="datenschutz.html">Datenschutzerklärung')) {
+    no("Übersicht", "Datenschutzseite steht fälschlich in der Gewinnspielliste");
+  } else {
+    ok("Datenschutzerklärung erzeugt und verlinkt");
+  }
   if (!uebersicht.includes("https://mein.online-impressum.de/beispiel")) {
     no("Übersichtsseite", "Impressum-Link fehlt im Fußbereich");
   } else {

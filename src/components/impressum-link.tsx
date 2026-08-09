@@ -8,17 +8,27 @@ import { db } from "@/lib/db";
 /// gleich aussehen.
 export async function ImpressumLink({ className = "" }: { className?: string }) {
   const settings = await db.settings.findUnique({ where: { id: "settings" } });
-  const url = settings?.impressumUrl?.trim();
-  if (!url) return null;
+  const impressum = settings?.impressumUrl?.trim();
+  const basis = settings?.publishBaseUrl?.trim()?.replace(/\/+$/, "");
+  const stil = `shrink-0 underline hover:text-slate-800 ${className}`;
 
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noreferrer"
-      className={`shrink-0 underline hover:text-slate-800 ${className}`}
-    >
-      Impressum
-    </a>
+    <>
+      {impressum ? (
+        <a href={impressum} target="_blank" rel="noreferrer" className={stil}>
+          Impressum
+        </a>
+      ) : null}
+      {basis ? (
+        <a
+          href={`${basis}/datenschutz.html`}
+          target="_blank"
+          rel="noreferrer"
+          className={stil}
+        >
+          Datenschutz
+        </a>
+      ) : null}
+    </>
   );
 }

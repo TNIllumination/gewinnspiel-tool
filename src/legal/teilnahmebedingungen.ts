@@ -24,6 +24,8 @@ export interface GiveawayForTerms {
   startsAt?: Date | null;
   endsAt?: Date | null;
   substituteCount: number;
+  /// Eigene Bedingungen, eine je Zeile.
+  customTerms?: string | null;
   sources: { platform: string; postUrl?: string | null }[];
   prizes: { title: string; description?: string | null; quantity: number }[];
   rules: { type: RuleType; config: unknown; enabled?: boolean }[];
@@ -36,6 +38,15 @@ export interface Organizer {
   /// Adresse des Impressums. Leer, wenn keines hinterlegt ist — ob eines
   /// noetig ist, entscheidet der Veranstalter, nicht das Werkzeug.
   impressumUrl?: string;
+}
+
+/// Zerlegt das Freifeld in einzelne Bedingungen. Leerzeilen und fuehrende
+/// Aufzaehlungszeichen fliegen raus — sonst steht spaeter "• • Text" da.
+export function customTermLines(raw?: string | null): string[] {
+  return (raw ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/^[•\-*]\s*/, "").trim())
+    .filter(Boolean);
 }
 
 export class MissingOrganizerError extends Error {
@@ -164,8 +175,22 @@ export function buildTerms(
   );
   add(
     "• Die Daten werden nach Abschluss des Gewinnspiels gelöscht. Auskunft und Löschung jederzeit über den oben genannten Kontakt.",
-    "",
   );
+  if (who.publishBaseUrl?.trim()) {
+    add(
+      `• Vollständige Datenschutzerklärung: ${who.publishBaseUrl.replace(/\/+$/, "")}/datenschutz.html`,
+    );
+  }
+  add("");
+
+  // Eigene Bedingungen stehen bewusst VOR dem Plattform-Hinweis: Der ist
+  // Pflichttext der Plattformen und bleibt der Schlussstein.
+  const eigene = customTermLines(giveaway.customTerms);
+  if (eigene.length > 0) {
+    add("Weitere Bedingungen");
+    for (const line of eigene) add(`• ${line}`);
+    add("");
+  }
 
   add("Hinweis zu den Plattformen");
   add(platformDisclaimer(giveaway, who));
@@ -197,6 +222,15 @@ export function buildShortTerms(
       `Zu gewinnen: ${giveaway.prizes.map((p) => p.title).join(" · ")}`,
       "",
     );
+  }
+
+  // Auch in der Kurzfassung: "Uebergabe nur vor Ort" ist wesentlich. Es
+  // stillschweigend wegzulassen, sobald es eng wird, waere die schlechtere
+  // Ueberraschung — die Laengenwarnung greift ohnehin.
+  const eigene = customTermLines(giveaway.customTerms);
+  if (eigene.length > 0) {
+    for (const line of eigene) lines.push(`• ${line}`);
+    lines.push("");
   }
 
   if (giveaway.endsAt) {

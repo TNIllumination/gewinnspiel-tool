@@ -3,7 +3,8 @@ import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import { db } from "@/lib/db";
 import { getSessionUserId } from "@/lib/auth";
-import { publishIndex, saveSettings } from "../actions";
+import { publishIndex, removeGitHubToken, saveSettings, testGitHubConnection } from "../actions";
+import { GitHubPanel } from "@/components/github-panel";
 import { ActionForm } from "@/components/action-form";
 import {
   Card,
@@ -95,6 +96,49 @@ export default async function EinstellungenPage() {
             </Field>
 
             <Field
+              label="Wie lange bleiben veröffentlichte Seiten online?"
+              hint="In Monaten nach Abschluss des Gewinnspiels. Steht so in der Datenschutzerklärung — dort ist eine konkrete Frist Pflicht."
+            >
+              <input
+                className={inputClass}
+                name="publishRetentionMonths"
+                type="number"
+                min={1}
+                max={120}
+                defaultValue={settings?.publishRetentionMonths ?? 6}
+              />
+            </Field>
+
+            <Field
+              label="Repository fürs Hochladen"
+              hint="Dein öffentliches Repository, z. B. deinname/gewinnspiele. Die volle Adresse aus dem Browser geht auch."
+            >
+              <input
+                className={inputClass}
+                name="githubRepo"
+                defaultValue={settings?.githubRepo ?? ""}
+                placeholder="deinname/gewinnspiele"
+              />
+            </Field>
+
+            <Field
+              label="Zugangsschlüssel für GitHub"
+              hint={
+                settings?.githubToken
+                  ? "Hinterlegt ✓ — leer lassen, um ihn zu behalten. Nur ausfüllen, wenn du ihn ersetzen willst."
+                  : "Noch keiner hinterlegt. Ohne ihn erzeugt das Tool nur die Dateien, das Hochladen machst du selbst."
+              }
+            >
+              <input
+                className={inputClass}
+                name="githubToken"
+                type="password"
+                autoComplete="off"
+                placeholder={settings?.githubToken ? "unverändert" : "github_pat_…"}
+              />
+            </Field>
+
+            <Field
               label="Adresse deiner veröffentlichten Seiten"
               hint="Optional. Wenn du die ausführlichen Teilnahmebedingungen auf GitHub Pages ablegst, trag hier die Basisadresse ein — dann baut das Tool den fertigen Link für den Beitrag."
             >
@@ -108,6 +152,13 @@ export default async function EinstellungenPage() {
           </div>
         </ActionForm>
       </Card>
+
+      <GitHubPanel
+        pruefen={testGitHubConnection}
+        entfernen={removeGitHubToken}
+        repo={settings?.githubRepo ?? ""}
+        hatSchluessel={Boolean(settings?.githubToken)}
+      />
 
       {!settings?.impressumUrl?.trim() ? (
         <Notice title="Kein Impressum hinterlegt" tone="warn">
@@ -127,12 +178,24 @@ export default async function EinstellungenPage() {
             bereits veröffentlichten Gewinnspiele auflistet.
           </p>
           <p>
-            Lade sie als <strong>Erstes</strong> in dein GitHub-Repository. Bei einem
-            leeren Repository bietet GitHub Pages keinen Branch zur Auswahl an — die
-            Einstellung bleibt grau. Erst mit dieser Datei lässt sich Pages
-            einschalten. Danach schreibt das Tool die Übersicht bei jeder
-            Veröffentlichung von selbst neu.
+            Dabei entsteht auch{" "}
+            <code className="rounded bg-slate-100 px-1">datenschutz.html</code> — die
+            Datenschutzerklärung, die eine öffentliche Seite braucht.
           </p>
+          {settings?.githubToken ? (
+            <p>
+              Beides wird gleich hochgeladen und GitHub Pages beim ersten Mal
+              eingeschaltet. Danach hältst du die Übersicht mit jedem
+              Veröffentlichen von selbst aktuell.
+            </p>
+          ) : (
+            <p>
+              Lade die Dateien als <strong>Erstes</strong> in dein
+              GitHub-Repository. Bei einem leeren Repository bietet GitHub Pages
+              keinen Branch zur Auswahl an — die Einstellung bleibt grau. Erst mit
+              einer Datei darin lässt sich Pages einschalten.
+            </p>
+          )}
           <p className={indexAt ? "text-slate-600" : "text-slate-500"}>
             {indexAt
               ? `Zuletzt erzeugt: ${formatDateTime(indexAt)}`
@@ -141,7 +204,11 @@ export default async function EinstellungenPage() {
         </div>
         <ActionForm
           action={publishIndex}
-          submitLabel="Übersichtsseite erzeugen"
+          submitLabel={
+            settings?.githubToken
+              ? "Übersichtsseite erzeugen und hochladen"
+              : "Übersichtsseite erzeugen"
+          }
           variant="secondary"
         />
         {!angaben ? (

@@ -336,33 +336,87 @@ eine Kontaktmöglichkeit ein, dann erzeugt der Knopf **Texte erzeugen** im Gewin
 ### Kostenlos online stellen mit GitHub Pages
 
 Damit Teilnehmer die ausführliche Fassung auch aufrufen können, brauchst du eine
-öffentliche Adresse — die kostet aber nichts:
+öffentliche Adresse — die kostet aber nichts.
+
+**Einmalig einrichten:**
 
 1. Auf GitHub ein neues **öffentliches** Repository anlegen, z. B. `gewinnspiele`
-2. Im Tool unter **Einstellungen** auf **Übersichtsseite erzeugen** — dabei
-   entsteht `index.html` im Ordner `veroeffentlichung`
-3. Auf GitHub **Add file → Upload files**, `index.html` hineinziehen,
-   **Commit changes**
-4. **Erst jetzt**: **Settings → Pages**, als Quelle Branch `main` und Ordner
-   `/ (root)` wählen, **Save**
-5. Nach ein bis zwei Minuten ist die Adresse erreichbar
-6. Die Adresse unter **Einstellungen** eintragen, dann baut das Tool den Link
-   für den Beitrag automatisch
-7. Ab dann bei jedem Gewinnspiel auf **Seite für GitHub erzeugen** und die
-   erzeugte Datei hochladen — `index.html` schreibt das Tool jedes Mal mit,
-   lade sie einfach zusammen mit hoch
+2. Einen **Zugangsschlüssel** anlegen (siehe nächster Abschnitt) und im Tool unter
+   **Einstellungen** zusammen mit dem Repository eintragen
+3. Auf **Verbindung prüfen** — das Tool sagt dir, ob alles passt
+4. Auf **Übersichtsseite erzeugen und hochladen**
 
-> **Warum Schritt 3 vor Schritt 4 kommt:** Ein leeres Repository hat noch keinen
-> Branch, den GitHub Pages als Quelle anbieten könnte — die Auswahl bleibt grau.
-> Sobald die erste Datei drin liegt, lässt sich Pages einschalten.
+Fertig. Das Tool legt die Dateien an, lädt sie hoch und schaltet GitHub Pages ein.
+Nach ein bis zwei Minuten ist die Adresse erreichbar; trag sie unter
+**Einstellungen** ein, dann baut das Tool den Link für den Beitrag.
 
-Heißt dein Konto `TNIllumination` und das Repository `gewinnspiele`, lautet die
-Adresse `https://tnillumination.github.io/gewinnspiele`. **Kleingeschrieben**,
-auch wenn dein Kontoname Großbuchstaben hat — das ist die häufigste Stolperstelle
-beim Abtippen.
+Heißt dein Konto `TNIllumination` und das Repository `gewinnspiele`, lautet sie
+`https://tnillumination.github.io/gewinnspiele`. **Kleingeschrieben**, auch wenn dein
+Kontoname Großbuchstaben hat — die häufigste Stolperstelle beim Abtippen.
+
+**Ab dann** genügt beim Gewinnspiel der Knopf **Veröffentlichen und hochladen**.
+Gewinnspielseite, Übersicht und Datenschutzerklärung gehen in einem Zug hoch.
+
+### Den Zugangsschlüssel anlegen
+
+1. Auf GitHub oben rechts aufs Profilbild → **Settings**
+2. Ganz unten links **Developer settings**
+3. **Personal access tokens → Fine-grained tokens → Generate new token**
+4. Name z. B. `Gewinnspiel-Tool`, Laufzeit wählen
+5. **Repository access → Only select repositories →** `gewinnspiele`
+6. **Permissions → Repository permissions**: **Contents** auf *Read and write*,
+   **Pages** auf *Read and write*
+7. **Generate token**, kopieren — GitHub zeigt ihn **nur einmal** an
+8. Im Tool unter **Einstellungen** einfügen und speichern
+
+Der Schlüssel gilt nur für dieses eine Repository, nicht für dein übriges Konto. Er
+liegt verschlüsselt in der Datenbank und wird nie wieder angezeigt. Läuft er ab, legst
+du einen neuen an — das Tool sagt dir dann, dass er abgelaufen ist.
+
+### Ohne Zugangsschlüssel
+
+Geht auch. Dann erzeugt das Tool nur die Dateien in den Ordner `veroeffentlichung`,
+und du lädst sie selbst hoch: auf GitHub **Add file → Upload files**, alle Dateien
+hineinziehen, **Commit changes**. GitHub Pages musst du dann einmalig selbst
+einschalten — **erst nach** dem ersten Hochladen, denn ein leeres Repository bietet
+unter *Settings → Pages* keinen Branch zur Auswahl an.
+
+Dasselbe gilt, wenn unterwegs kein Internet da ist: Die Dateien sind trotzdem
+geschrieben und lassen sich später hochladen.
 
 Lade zweimal hoch: vor dem Start mit den Bedingungen, nach der Ziehung mit dem
 Ergebnis. Gleicher Dateiname, gleiche Adresse — der Link im Beitrag bleibt gültig.
+
+### Eigene Bedingungen ergänzen
+
+Unter den Regeln gibt es das Feld **Eigene Bedingungen** — eine Bedingung je Zeile.
+Sie erscheinen als eigener Abschnitt „Weitere Bedingungen" in den
+Teilnahmebedingungen und auch in der Kurzfassung für den Beitrag. Typisch:
+
+```
+Übergabe des Gewinns vor Ort auf dem Festival
+Versand nur innerhalb Deutschlands
+```
+
+Der Pflichthinweis der Plattformen bleibt davon unberührt und steht weiterhin am Ende.
+
+### Datenschutzerklärung
+
+Sobald die Seiten öffentlich erreichbar sind, brauchst du eine — aus zwei Gründen:
+GitHub verarbeitet beim Aufruf die IP-Adresse der Besucher, und auf der Seite stehen
+die Benutzernamen der Teilnehmer. Das Impressum deckt das nicht ab.
+
+Das Tool erzeugt sie automatisch als `datenschutz.html`, jedes Mal, wenn du
+veröffentlichst — aus deinen echten Angaben: Veranstalter, Kontakt, Impressum,
+genutzte Plattformen und den Fristen aus den Einstellungen. Verlinkt ist sie im
+Fußbereich jeder Seite.
+
+Unter **Einstellungen** legst du fest, wie lange veröffentlichte Seiten online
+bleiben (Voreinstellung: 6 Monate). Diese Frist steht wörtlich in der Erklärung — halt
+dich also daran, oder ändere die Zahl.
+
+Wie bei den Teilnahmebedingungen gilt: Das ist keine Rechtsberatung. Einmal von einem
+Anwalt gegenlesen lassen, dann steht es.
 
 ### Impressum
 

@@ -74,11 +74,18 @@
   Fußbereich beider erzeugter Seitentypen, in beiden Fassungen der
   Teilnahmebedingungen und auf den örtlichen öffentlichen Seiten.
 
+- **Fassung 0.4.0**: `src/lib/github.ts` lädt die erzeugten Seiten selbst hoch
+  (Git-Datenschnittstelle für ein Repository mit Stand, Inhalts-Endpunkt fürs leere)
+  und schaltet Pages ein; Zugangsschlüssel AES-verschlüsselt in `Settings`.
+  `src/legal/datenschutz.ts` erzeugt die Datenschutzerklärung, `buildPrivacyPage`
+  rendert sie; alle drei Seitentypen teilen sich jetzt `seite()` und `fusszeile()`
+  in `src/legal/publish.ts`. `Giveaway.customTerms` als Freifeld für eigene
+  Bedingungen.
+
 ## Als Nächstes
 
 1. PDF-Ziehungsprotokoll als Rechtsnachweis.
-2. Rechtstexte (Impressum, Datenschutzerklärung, Verarbeitungsverzeichnis) und
-   automatische Löschfristen.
+2. Verarbeitungsverzeichnis und automatische Löschfristen.
 3. Instagram-Anbindung (Phase 2) und YouTube (Phase 2b).
 
 ## Zurück zu PostgreSQL (falls später Hosting gewünscht)
@@ -91,11 +98,6 @@ werden könnten: der Duplikat-Abgleich in `storeComments` (SQLite kennt kein
 
 ## Offen / zu beachten
 
-- **Aufzuräumen**: Solange dieses Repo noch nicht existierte, lag eine Sicherungskopie
-  im Branch `claude/social-media-giveaway-picker-fecfse` von `TNIllumination/TruthorDare`.
-  Sie wird nicht mehr gebraucht. Der Git-Proxy dieser Sitzung lässt das Löschen von
-  Branches nicht zu — bitte einmalig auf GitHub entfernen
-  (Branches → Papierkorb-Symbol).
 - **Login**: Statt Auth.js ist eine schlanke Cookie-Session mit `jose` vorgesehen —
   bei genau einem Benutzer ist das weniger fehleranfällig als ein volles Auth-Framework.
 - **Instagram** braucht ein Meta App Review (1–4 Wochen). Phase 1 funktioniert

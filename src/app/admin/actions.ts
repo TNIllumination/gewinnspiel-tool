@@ -14,7 +14,7 @@ import {
 } from "@/lib/auth";
 import { evaluateEntries, type CommentInput, type RuleSpec } from "@/rules/engine";
 import { entryFingerprint } from "@/rules/text";
-import { mkdir, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { commit, draw, type Entrant } from "@/draw/commit-reveal";
 import { prizeIdForSlot, resolveWinners } from "@/draw/promotion";
@@ -25,11 +25,15 @@ import {
 } from "@/legal/teilnahmebedingungen";
 import {
   buildIndexPage,
+  buildPrivacyPage,
   buildPublishPage,
   withScheme,
   type IndexEntry,
   type PublishInput,
 } from "@/legal/publish";
+import { buildPrivacyPolicy } from "@/legal/datenschutz";
+import { GitHubError, checkAccess, ensurePages, normalizeRepo, uploadFiles } from "@/lib/github";
+import { decryptOptional, encrypt } from "@/lib/crypto";
 import { parseManualImport } from "@/platforms/manual-import";
 import { generateSandboxComments } from "@/platforms/sandbox";
 import type { PlatformId } from "@/platforms/base";
@@ -415,7 +419,11 @@ export async function saveRules(giveawayId: string, formData: FormData) {
 
   await db.giveaway.update({
     where: { id: giveawayId },
-    data: { startsAt, endsAt },
+    data: {
+      startsAt,
+      endsAt,
+      customTerms: String(formData.get("customTerms") ?? "").trim() || null,
+    },
   });
 
   if (startsAt || endsAt) {
@@ -766,6 +774,7 @@ export async function shutdownServer() {
 // ── Rechtstexte und Veröffentlichung ─────────────────────────────────────────
 
 const PUBLISH_DIR = "veroeffentlichung";
+const EIGENE_SEITEN = ["index.html", "datenschutz.html"];
 
 /// Schreibt die Startseite des Veroeffentlichungsordners neu.
 ///
@@ -778,8 +787,9 @@ async function writeIndexPage() {
 
   let files: string[] = [];
   try {
+    // Startseite und Datenschutzerklaerung sind keine Gewinnspiele.
     files = (await readdir(dir)).filter(
-      (name) => name.endsWith(".html") && name !== "index.html",
+      (name) => name.endsWith(".html") && !EIGENE_SEITEN.includes(name),
     );
   } catch {
     files = [];
@@ -815,7 +825,104 @@ async function writeIndexPage() {
   });
 
   await writeFile(join(dir, "index.html"), html, "utf8");
+
+  // Die Datenschutzerklaerung gehoert zu jeder Veroeffentlichung dazu und
+  // wird jedes Mal neu geschrieben — sonst haengt sie hinterher, sobald sich
+  // Kontakt oder Fristen aendern.
+  await writeFile(join(dir, "datenschutz.html"), await buildPrivacyHtml(), "utf8");
+
   return { fileName: "index.html", count: entries.length };
+}
+
+/// Die Datenschutzerklaerung als fertige Seite.
+async function buildPrivacyHtml() {
+  const settings = await db.settings.findUnique({ where: { id: "settings" } });
+  const sources = await db.giveawaySource.findMany({
+    distinct: ["platform"],
+    select: { platform: true },
+  });
+
+  const who = {
+    organizer: settings?.organizer ?? "",
+    contact: settings?.contact ?? "",
+    publishBaseUrl: settings?.publishBaseUrl ?? "",
+    impressumUrl: settings?.impressumUrl ?? "",
+  };
+
+  const text = buildPrivacyPolicy(who, {
+    // Die Aufbewahrung steht je Gewinnspiel; genannt wird die laengste, denn
+    // eine kuerzere Angabe waere zu optimistisch.
+    retentionDays: await longestRetention(),
+    publishRetentionMonths: settings?.publishRetentionMonths ?? 6,
+    platforms: sources.map((s) => s.platform as PlatformId),
+  });
+
+  return buildPrivacyPage({ text, ...who });
+}
+
+async function longestRetention() {
+  const max = await db.giveaway.aggregate({ _max: { retentionDays: true } });
+  return max._max.retentionDays ?? 30;
+}
+
+/// Alle Dateien des Ordners — zum Hochladen.
+async function publishedFiles() {
+  const dir = join(process.cwd(), PUBLISH_DIR);
+  const namen = (await readdir(dir)).filter((n) => n.endsWith(".html"));
+  return Promise.all(
+    namen.map(async (path) => ({
+      path,
+      content: await readFile(join(dir, path), "utf8"),
+    })),
+  );
+}
+
+/// Zugang zu GitHub, sofern hinterlegt.
+async function githubZugang() {
+  const settings = await db.settings.findUnique({ where: { id: "settings" } });
+  const repo = settings?.githubRepo?.trim();
+  const token = decryptOptional(settings?.githubToken || null);
+  if (!repo || !token) return null;
+  return { repo, token };
+}
+
+export interface UploadErgebnis {
+  hochgeladen: boolean;
+  commitUrl?: string;
+  pagesUrl?: string;
+  hinweis?: string;
+}
+
+/// Laedt hoch, wenn ein Schluessel hinterlegt ist.
+///
+/// Schlaegt es fehl, ist das kein Grund abzubrechen: Die Dateien sind bereits
+/// geschrieben. Der Fehler wird als Hinweis weitergereicht, damit niemand
+/// glaubt, die Arbeit sei verloren.
+async function ladeHoch(
+  files: { path: string; content: string }[],
+  message: string,
+): Promise<UploadErgebnis> {
+  const zugang = await githubZugang();
+  if (!zugang) return { hochgeladen: false };
+
+  try {
+    const ergebnis = await uploadFiles({ ...zugang, files, message });
+    const pages = await ensurePages(zugang);
+    return {
+      hochgeladen: true,
+      commitUrl: ergebnis.commitUrl,
+      pagesUrl: pages.url,
+      hinweis: pages.hinweis,
+    };
+  } catch (error) {
+    return {
+      hochgeladen: false,
+      hinweis:
+        error instanceof GitHubError
+          ? error.message
+          : "Das Hochladen hat nicht geklappt. Die Dateien liegen im Ordner veroeffentlichung.",
+    };
+  }
 }
 
 /// Erzeugt allein die Übersichtsseite.
@@ -833,17 +940,19 @@ export async function publishIndex() {
   }
 
   const result = await writeIndexPage();
+  // Alle Dateien mitnehmen: repariert nebenbei, was einmal ohne Netz entstand.
+  const upload = await ladeHoch(await publishedFiles(), "Übersichtsseite aktualisiert");
 
   await audit({
     action: "index.published",
     entity: "Settings",
     entityId: "settings",
     actor: userId,
-    detail: { count: result.count },
+    detail: { count: result.count, hochgeladen: upload.hochgeladen },
   });
 
   revalidatePath("/admin/einstellungen");
-  return result;
+  return { ...result, ...upload };
 }
 
 async function loadForTerms(giveawayId: string) {
@@ -883,6 +992,7 @@ async function loadForTerms(giveawayId: string) {
       startsAt: giveaway.startsAt,
       endsAt: giveaway.endsAt,
       substituteCount: giveaway.substituteCount,
+      customTerms: giveaway.customTerms,
       sources: giveaway.sources.map((s) => ({
         platform: s.platform,
         postUrl: s.postUrl,
@@ -1010,17 +1120,27 @@ export async function publishPage(giveawayId: string) {
   // hinterherhinkt.
   await writeIndexPage();
 
+  const upload = await ladeHoch(
+    await publishedFiles(),
+    `Gewinnspiel veröffentlicht: ${giveaway.title}`,
+  );
+
   await audit({
     action: "giveaway.published",
     entity: "Giveaway",
     entityId: giveawayId,
     actor: userId,
-    detail: { fileName, withResults: Boolean(drawData?.drawnAt) },
+    detail: {
+      fileName,
+      withResults: Boolean(drawData?.drawnAt),
+      hochgeladen: upload.hochgeladen,
+    },
   });
 
   return {
     fileName,
     url: who.publishBaseUrl ? `${who.publishBaseUrl}/${fileName}` : null,
+    ...upload,
   };
 }
 
@@ -1035,14 +1155,33 @@ export async function saveSettings(formData: FormData) {
     String(formData.get("publishBaseUrl") ?? "").trim().replace(/\/+$/, ""),
   );
   const impressumUrl = withScheme(String(formData.get("impressumUrl") ?? "").trim());
+  const githubRepo = normalizeRepo(String(formData.get("githubRepo") ?? ""));
+  const publishRetentionMonths = Math.min(
+    Math.max(Number(formData.get("publishRetentionMonths") ?? 6), 1),
+    120,
+  );
 
   if (!organizer) fail("Bitte den Namen des Veranstalters angeben.");
   if (!contact) fail("Bitte eine Kontaktmöglichkeit angeben.");
 
+  // Ein leeres Feld heisst „unveraendert", nicht „loeschen" — sonst waere
+  // der Schluessel nach jedem Speichern der uebrigen Angaben weg.
+  const eingegeben = String(formData.get("githubToken") ?? "").trim();
+  const githubToken = eingegeben ? encrypt(eingegeben) : undefined;
+
+  const gemeinsam = {
+    organizer,
+    contact,
+    publishBaseUrl,
+    impressumUrl,
+    githubRepo,
+    publishRetentionMonths,
+  };
+
   await db.settings.upsert({
     where: { id: "settings" },
-    create: { id: "settings", organizer, contact, publishBaseUrl, impressumUrl },
-    update: { organizer, contact, publishBaseUrl, impressumUrl },
+    create: { id: "settings", ...gemeinsam, githubToken: githubToken ?? "" },
+    update: { ...gemeinsam, ...(githubToken ? { githubToken } : {}) },
   });
 
   await audit({
@@ -1052,6 +1191,61 @@ export async function saveSettings(formData: FormData) {
     actor: userId,
   });
 
+  revalidatePath("/admin/einstellungen");
+}
+
+/// Prueft Zugang und Zustand, bevor es darauf ankommt.
+///
+/// Ein falscher Schluessel faellt sonst erst beim Veroeffentlichen auf —
+/// also genau dann, wenn es eilt.
+export async function testGitHubConnection() {
+  await requireUser();
+  const zugang = await githubZugang();
+  if (!zugang) {
+    fail(
+      "Trag zuerst Repository und Zugangsschlüssel ein und speichere sie.",
+    );
+  }
+
+  const ergebnis = await checkAccess(zugang);
+  const teile = [`Verbunden mit ${ergebnis.repo}.`];
+  teile.push(
+    ergebnis.darfSchreiben
+      ? "Schreiben ist erlaubt."
+      : "Achtung: Der Schlüssel darf nicht schreiben — prüf die Berechtigung „Contents“.",
+  );
+  if (ergebnis.pagesAn) {
+    teile.push(`GitHub Pages läuft: ${ergebnis.pagesUrl}`);
+  } else if (ergebnis.pagesUnbekannt) {
+    teile.push(
+      "Ob GitHub Pages läuft, lässt sich nicht sagen — dem Schlüssel fehlt die Berechtigung „Pages“.",
+    );
+  } else {
+    teile.push(
+      "GitHub Pages ist noch aus. Das Tool schaltet es beim nächsten Hochladen ein.",
+    );
+  }
+  if (ergebnis.privat) {
+    teile.push(
+      "Hinweis: Das Repository ist privat. GitHub Pages braucht dafür ein bezahltes Konto — für ein öffentliches ist es kostenlos.",
+    );
+  }
+  return { meldung: teile.join(" ") };
+}
+
+/// Entfernt den hinterlegten Schluessel.
+export async function removeGitHubToken() {
+  const userId = await requireUser();
+  await db.settings.update({
+    where: { id: "settings" },
+    data: { githubToken: "" },
+  });
+  await audit({
+    action: "settings.token_removed",
+    entity: "Settings",
+    entityId: "settings",
+    actor: userId,
+  });
   revalidatePath("/admin/einstellungen");
 }
 

@@ -83,6 +83,8 @@ export default async function GiveawayPage({
       label: getPlatform(s.platform as PlatformId).label,
     }));
 
+  const settings = await db.settings.findUnique({ where: { id: "settings" } });
+
   const [total, valid, lotsAgg, perPlatform] = await Promise.all([
     db.entry.count({ where: { giveawayId: id } }),
     db.entry.count({ where: { giveawayId: id, valid: true } }),
@@ -285,6 +287,18 @@ export default async function GiveawayPage({
               </Field>
 
               <Field
+                label="Eigene Bedingungen"
+                hint="Eine je Zeile. Kommt als eigener Abschnitt in die Teilnahmebedingungen — z. B. „Übergabe nur vor Ort“ oder „Versand nur innerhalb Deutschlands“."
+              >
+                <textarea
+                  className={`${inputClass} min-h-24`}
+                  name="customTerms"
+                  defaultValue={giveaway.customTerms ?? ""}
+                  placeholder={"Übergabe des Gewinns vor Ort auf dem Festival\nVersand nur innerhalb Deutschlands"}
+                />
+              </Field>
+
+              <Field
                 label="Diese Wörter müssen vorkommen"
                 hint="Mit Komma trennen. „Grüße“, „gruesse“ und „grusse“ gelten als dasselbe. Mehrfach genannt bringt keinen Vorteil."
               >
@@ -478,6 +492,7 @@ export default async function GiveawayPage({
           texte={buildTexts.bind(null, id)}
           veroeffentlichen={publishPage.bind(null, id)}
           slug={giveaway.slug}
+          hochladen={Boolean(settings?.githubToken)}
         />
       </Card>
 

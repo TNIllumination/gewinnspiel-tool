@@ -1,5 +1,13 @@
 # Was sich geändert hat
 
+## 0.4.0
+
+- **Hochladen auf Knopfdruck**: Ein Zugangsschlüssel unter Einstellungen genügt — das Tool lädt die Seiten selbst zu GitHub und schaltet GitHub Pages beim ersten Mal ein
+- Alle Dateien gehen in einem Commit hoch; ohne Schlüssel oder ohne Internet bleibt der Weg von Hand wie bisher
+- **Datenschutzerklärung** wird als eigene Seite erzeugt und im Fußbereich jeder Seite verlinkt — erzeugt aus deinen echten Angaben, nicht aus einer Vorlage
+- **Eigene Bedingungen** je Gewinnspiel: ein Freifeld, das als eigener Abschnitt in beiden Fassungen der Teilnahmebedingungen erscheint
+- Knopf „Verbindung prüfen": sagt vor dem Gewinnspiel, ob Schlüssel und Berechtigungen stimmen
+
 ## 0.3.1
 
 - Übersichtsseite für die veröffentlichten Gewinnspiele — sie kommt bei jeder Veröffentlichung automatisch mit
