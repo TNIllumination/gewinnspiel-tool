@@ -1,6 +1,6 @@
 {
   "name": "gewinnspiel-tool",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "docs": "tsx scripts/build-docs.mts",
+    "update": "node scripts/update.mjs"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.9.1",
@@ -16,6 +18,7 @@
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.0.3",
     "jose": "^6.2.8",
+    "marked": "^18.0.9",
     "next": "16.3.0",
     "pdfkit": "^0.19.1",
     "prisma": "^7.9.1",

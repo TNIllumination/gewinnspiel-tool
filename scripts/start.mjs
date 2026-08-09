@@ -8,14 +8,19 @@
 // ist. Ein Stacktrace hilft niemandem, der nur sein Gewinnspiel auslosen will.
 
 import { spawn, spawnSync } from "node:child_process";
+import { createInterface } from "node:readline/promises";
 import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { fetchChangelogHead, fetchLatest, isNewer, localVersion } from "./update.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const PORT = process.env.PORT ?? "3000";
 const URL = `http://localhost:${PORT}`;
+// Geoeffnet wird die Verwaltung — dort kann man etwas tun. Die oeffentliche
+// Startseite ist fuer Teilnehmer gedacht und beim ersten Start eine Sackgasse.
+const ADMIN_URL = `${URL}/admin`;
 
 const say = (msg) => console.log(msg);
 const step = (msg) => console.log(`\n▶ ${msg}`);
@@ -49,6 +54,42 @@ if (major < 20) {
     "Bitte die aktuelle LTS-Version von https://nodejs.org installieren\n" +
       "und danach start.bat erneut doppelklicken.",
   );
+}
+
+// ── 1b. Gibt es eine neuere Fassung? ─────────────────────────────────────────
+// Bewusst hier, VOR dem Serverstart: Jetzt ist noch keine Datei gesperrt,
+// ein Austausch kann also nicht auf halbem Weg abbrechen.
+if (!process.env.SKIP_UPDATE_CHECK && process.stdin.isTTY) {
+  const here = localVersion();
+  const latest = await fetchLatest(); // ohne Internet: null, ohne Meldung
+
+  if (latest && isNewer(latest, here)) {
+    say(`\n▶ Neue Fassung ${latest} verfügbar (du hast ${here})`);
+
+    const news = await fetchChangelogHead();
+    if (news) say(`  Was ist neu:\n  ${news}`);
+
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    const answer = (await rl.question("\n  Jetzt aktualisieren? [j/n] "))
+      .trim()
+      .toLowerCase();
+    rl.close();
+
+    if (answer === "j" || answer === "ja") {
+      say("\n  Alles klar — das Update-Programm übernimmt.\n");
+      // Eigener Vorgang, und dieser hier beendet sich sofort: So haelt
+      // niemand mehr eine Datei offen, die gleich ersetzt wird.
+      spawn(process.execPath, [join(ROOT, "scripts", "update.mjs")], {
+        cwd: ROOT,
+        stdio: "inherit",
+      }).on("exit", (code) => process.exit(code ?? 0));
+
+      // Nichts weiter tun — der Rest passiert im Update-Programm.
+      await new Promise(() => {});
+    }
+
+    say("  Übersprungen. Du kannst später jederzeit update.bat ausführen.");
+  }
 }
 
 // ── 2. Abhaengigkeiten ───────────────────────────────────────────────────────
@@ -122,7 +163,7 @@ if (!existsSync(join(ROOT, ".next", "BUILD_ID"))) {
 try {
   const res = await fetch(URL, { signal: AbortSignal.timeout(1500) });
   if (res.ok || res.status === 307) {
-    say(`\n✅ Das Tool läuft bereits: ${URL}`);
+    say(`\n✅ Das Tool läuft bereits: ${ADMIN_URL}`);
     say("   Ruf die Adresse einfach im Browser auf.\n");
     process.exit(0);
   }
@@ -154,10 +195,10 @@ const server = spawn("npm", ["run", "start"], {
 
   const opener =
     process.platform === "win32"
-      ? ["cmd", ["/c", "start", "", URL]]
+      ? ["cmd", ["/c", "start", "", ADMIN_URL]]
       : process.platform === "darwin"
-        ? ["open", [URL]]
-        : ["xdg-open", [URL]];
+        ? ["open", [ADMIN_URL]]
+        : ["xdg-open", [ADMIN_URL]];
 
   // Laesst sich kein Browser oeffnen, ist das kein Grund, den Server
   // mitzureissen — ohne diesen Handler beendet ein fehlendes Programm
@@ -170,7 +211,8 @@ const server = spawn("npm", ["run", "start"], {
     // bewusst still: die Adresse steht unten ohnehin
   }
 
-  say(`\n✅ Läuft. Falls sich kein Browser öffnet: ${URL} von Hand aufrufen.\n`);
+  say(`\n✅ Läuft. Falls sich kein Browser öffnet: ${ADMIN_URL} von Hand aufrufen.\n`);
+  say("   Beim ersten Mal legst du dort dein Konto an.\n");
 })();
 
 server.on("exit", (code) => process.exit(code ?? 0));

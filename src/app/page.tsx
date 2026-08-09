@@ -55,11 +55,16 @@ export default async function HomePage() {
         </div>
       )}
 
-      <footer className="mt-12 border-t border-slate-200 pt-6 text-xs text-slate-500">
-        <p>
+      <footer className="mt-12 flex flex-wrap items-start justify-between gap-4 border-t border-slate-200 pt-6 text-xs text-slate-500">
+        <p className="max-w-xl">
           Diese Aktionen stehen in keiner Verbindung zu Instagram, TikTok oder YouTube
           und werden von diesen weder gesponsert noch unterstützt oder organisiert.
         </p>
+        {/* Ohne diesen Link ist die Seite beim ersten Start eine Sackgasse:
+            Es gäbe keinen Weg zur Ersteinrichtung. */}
+        <Link href="/admin" className="shrink-0 underline hover:text-slate-800">
+          Verwaltung
+        </Link>
       </footer>
     </main>
   );

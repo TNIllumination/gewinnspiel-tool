@@ -58,7 +58,9 @@ Das Skript erledigt alles selbst: Bausteine installieren, Zugangsschlüssel erze
 Datenbank anlegen, bauen, starten und den Browser öffnen. Beim ersten Mal dauert es
 ein paar Minuten, danach Sekunden.
 
-Ausführliche Anleitung ohne Konsolenwissen: **[`docs/SURFACE.md`](docs/SURFACE.md)**
+**Handbuch:** `ANLEITUNG.html` im Projektordner doppelklicken (öffnet sich im Browser,
+kein Programm nötig) — oder im Tool oben rechts auf **Hilfe**.
+Quelle: [`docs/HANDBUCH.md`](docs/HANDBUCH.md)
 
 Die Datenbank ist **eine einzelne Datei** (`gewinnspiel.db`) im Projektordner.
 Sichern heißt: Datei kopieren. Die Daten verlassen dein Gerät nie.
@@ -77,6 +79,8 @@ er erzeugt erfundene Teilnehmer und durchläuft den kompletten Ablauf.
 | `npm run lint` | Linter |
 | `npx prisma migrate dev` | Datenbank aktualisieren |
 | `npx prisma studio` | Daten im Browser ansehen |
+| `npm run docs` | `ANLEITUNG.html` neu erzeugen |
+| `npm run update` | Auf die neueste Fassung aktualisieren |
 
 ## Datenschutz
 
@@ -91,5 +95,6 @@ einer einstellbaren Frist. Jede Verarbeitung landet im Audit-Log.
 
 ## Dokumentation
 
+- [`docs/HANDBUCH.md`](docs/HANDBUCH.md) — Handbuch für die Bedienung
 - [`docs/PLAN.md`](docs/PLAN.md) — Gesamtplan und Begründung der Architektur
 - [`docs/STATUS.md`](docs/STATUS.md) — aktueller Stand, nächste Schritte

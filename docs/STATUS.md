@@ -51,7 +51,12 @@
   Datenbankserver entfallen, die Datenbank ist die Datei `gewinnspiel.db`.
   `start.bat` / `start.sh` erledigen Installation, Schlüsselerzeugung, Migration,
   Build und Serverstart per Doppelklick (`scripts/start.mjs`).
-  Anleitung ohne Konsolenwissen in `docs/SURFACE.md`.
+  Anleitung ohne Konsolenwissen in `docs/HANDBUCH.md`.
+
+- **Fassung 0.2.0**: Update per Knopfdruck (`update.bat`, abhängigkeitsfrei entpackt
+  über `scripts/unzip.mjs`), Fassungsprüfung beim Start, Handbuch mit
+  Inhaltsverzeichnis als `ANLEITUNG.html` und unter `/admin/hilfe`, Start öffnet
+  jetzt die Verwaltung. `docs/SURFACE.md` ist in `docs/HANDBUCH.md` aufgegangen.
 
 ## Als Nächstes
 

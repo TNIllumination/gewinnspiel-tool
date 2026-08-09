@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import packageJson from "../../../package.json";
 import { db } from "@/lib/db";
 import { getSessionUserId } from "@/lib/auth";
 import { PLATFORMS, type PlatformId } from "@/platforms/base";
@@ -15,6 +16,10 @@ import {
   formatDateTime,
   inputClass,
 } from "@/components/ui";
+
+// Die Fassungsnummer steht in der package.json — eine Quelle, kein zweiter Ort,
+// der beim Aktualisieren vergessen werden könnte.
+const VERSION = process.env.npm_package_version ?? packageJson.version;
 
 const STATUS_LABELS: Record<string, { label: string; tone: "neutral" | "info" | "good" | "warn" }> = {
   DRAFT: { label: "Entwurf", tone: "neutral" },
@@ -40,11 +45,26 @@ export default async function AdminPage() {
         title="Meine Gewinnspiele"
         subtitle="Anlegen, auswerten, ziehen — und nachweisen, dass es fair war."
         action={
-          <form action={logout}>
-            <Button variant="secondary" type="submit">
-              Abmelden
-            </Button>
-          </form>
+          <div className="flex flex-wrap items-center gap-4">
+            <Link
+              href="/admin/hilfe"
+              className="text-sm text-slate-600 underline hover:text-slate-900"
+            >
+              Hilfe
+            </Link>
+            <Link
+              href="/"
+              className="text-sm text-slate-600 underline hover:text-slate-900"
+            >
+              Öffentliche Seite
+            </Link>
+            <span className="text-xs text-slate-400">Fassung {VERSION}</span>
+            <form action={logout}>
+              <Button variant="secondary" type="submit">
+                Abmelden
+              </Button>
+            </form>
+          </div>
         }
       />
 
