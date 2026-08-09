@@ -33,7 +33,14 @@ import {
   type PublishInput,
 } from "@/legal/publish";
 import { buildPrivacyPolicy } from "@/legal/datenschutz";
-import { GitHubError, checkAccess, ensurePages, normalizeRepo, uploadFiles } from "@/lib/github";
+import {
+  GitHubError,
+  checkAccess,
+  ensurePages,
+  normalizeRepo,
+  pagesUrl,
+  uploadFiles,
+} from "@/lib/github";
 import { decryptOptional, encrypt } from "@/lib/crypto";
 import { parseManualImport } from "@/platforms/manual-import";
 import { generateSandboxComments } from "@/platforms/sandbox";
@@ -1209,11 +1216,21 @@ export async function saveSettings(formData: FormData) {
 
     const organizer = String(formData.get("organizer") ?? "").trim();
     const contact = String(formData.get("contact") ?? "").trim();
-    const publishBaseUrl = withScheme(
+    let publishBaseUrl = withScheme(
       String(formData.get("publishBaseUrl") ?? "").trim().replace(/\/+$/, ""),
     );
     const impressumUrl = withScheme(String(formData.get("impressumUrl") ?? "").trim());
-    const githubRepo = normalizeRepo(String(formData.get("githubRepo") ?? ""));
+    const repoEingabe = String(formData.get("githubRepo") ?? "").trim();
+  const githubRepo = normalizeRepo(repoEingabe);
+  // Lieber gar nicht speichern als etwas halb Geratenes: Ein verstuemmelter
+  // Wert sieht fast richtig aus und faellt erst beim Hochladen auf.
+  if (repoEingabe && !githubRepo) {
+    fail(
+      `Aus „${repoEingabe}“ kann ich kein Repository lesen. Erwartet wird ` +
+        "besitzer/name, z. B. TNIllumination/gewinnspiele — die Adresse aus " +
+        "dem Browser geht auch, sowohl github.com/… als auch …github.io/….",
+    );
+  }
     const publishRetentionMonths = Math.min(
       Math.max(Number(formData.get("publishRetentionMonths") ?? 6), 1),
       120,
@@ -1226,6 +1243,11 @@ export async function saveSettings(formData: FormData) {
     // der Schluessel nach jedem Speichern der uebrigen Angaben weg.
     const eingegeben = String(formData.get("githubToken") ?? "").trim();
     const githubToken = eingegeben ? encrypt(eingegeben) : undefined;
+
+    // Die Veroeffentlichungsadresse ergibt sich aus dem Repository. Zwei
+    // Felder fuer dieselbe Sache haben schon fuer Verwirrung gesorgt — also
+    // fuellt das Tool das zweite selbst, solange es leer ist.
+    if (!publishBaseUrl && githubRepo) publishBaseUrl = pagesUrl(githubRepo);
 
     const gemeinsam = {
       organizer,

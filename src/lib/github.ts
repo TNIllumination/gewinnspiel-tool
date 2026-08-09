@@ -30,19 +30,58 @@ interface Zugang {
 
 /// Macht aus allem, was man kopieren kann, `besitzer/name`.
 ///
-/// Die wenigsten tippen das von Hand ab — sie kopieren die Adresse aus der
-/// Browserzeile. Das hier nimmt beides an.
+/// Die wenigsten tippen das ab — sie kopieren eine Adresse. Und es gibt
+/// **zwei**: die GitHub-Seite (github.com/besitzer/name) und die
+/// Veroeffentlichungsadresse (besitzer.github.io/name). Die zweite ist die,
+/// die man staendig vor Augen hat — also muss sie zuerst funktionieren.
+///
+/// Gibt "" zurueck, wenn sich nichts Verlaessliches herauslesen laesst. Ein
+/// halb geratenes Ergebnis waere schlimmer als keines: Es wuerde gespeichert,
+/// saehe fast richtig aus und schlueg erst beim Hochladen fehl.
 export function normalizeRepo(input: string): string {
   let s = input.trim();
   if (!s) return "";
+
   s = s.replace(/^git@github\.com:/i, "");
-  s = s.replace(/^https?:\/\/(www\.)?github\.com\//i, "");
+  // Jedes Schema, nicht nur github.com — sonst bleibt "https:" stehen und
+  // wird spaeter fuer den Besitzernamen gehalten.
+  s = s.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
+  s = s.replace(/^www\./i, "");
+  s = s.replace(/[?#].*$/, "");
   s = s.replace(/\.git$/i, "");
   s = s.replace(/^\/+|\/+$/g, "");
-  // Alles hinter besitzer/name abschneiden (…/tree/main, …/settings).
+
   const teile = s.split("/").filter(Boolean);
-  if (teile.length < 2) return teile.join("/");
-  return `${teile[0]}/${teile[1]}`;
+  if (teile.length === 0) return "";
+  const host = teile[0].toLowerCase();
+
+  // github.com/besitzer/name — alles dahinter (/tree/main, /settings) faellt weg.
+  if (host === "github.com") {
+    return teile.length >= 3 ? pruefeForm(teile[1], teile[2]) : "";
+  }
+
+  // besitzer.github.io/name — die Veroeffentlichungsadresse.
+  const pages = host.match(/^([a-z0-9-]+)\.github\.io$/);
+  if (pages) {
+    // Ohne Pfad ist es die persoenliche Seite; deren Repository heisst wie
+    // der Gastgebername selbst.
+    return teile.length >= 2
+      ? pruefeForm(pages[1], teile[1])
+      : pruefeForm(pages[1], host);
+  }
+
+  // Schon in der Kurzform eingegeben.
+  if (teile.length >= 2) return pruefeForm(teile[0], teile[1]);
+
+  // Ein einzelnes Wort ist kein Repository — GitHub braucht immer beides.
+  return "";
+}
+
+const NAME = /^[A-Za-z0-9._-]+$/;
+
+function pruefeForm(besitzer: string, name: string): string {
+  if (!NAME.test(besitzer) || !NAME.test(name)) return "";
+  return `${besitzer}/${name}`;
 }
 
 interface Antwort {

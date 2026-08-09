@@ -45,21 +45,56 @@ const REPO_OK: [number, Record<string, unknown>] = [
 ];
 
 describe("normalizeRepo", () => {
-  // Kaum jemand tippt das ab — kopiert wird die Adresse aus dem Browser.
-  it("nimmt die volle Adresse an", () => {
-    expect(normalizeRepo("https://github.com/TNIllumination/gewinnspiele")).toBe(REPO);
-    expect(normalizeRepo("https://github.com/TNIllumination/gewinnspiele.git")).toBe(REPO);
-    expect(normalizeRepo("git@github.com:TNIllumination/gewinnspiele.git")).toBe(REPO);
+  // Kaum jemand tippt das ab — kopiert wird eine Adresse. Und es gibt zwei.
+  it("nimmt die GitHub-Adresse an", () => {
+    for (const eingabe of [
+      "https://github.com/TNIllumination/gewinnspiele",
+      "https://github.com/TNIllumination/gewinnspiele.git",
+      "https://www.github.com/TNIllumination/gewinnspiele",
+      "github.com/TNIllumination/gewinnspiele/tree/main",
+      "git@github.com:TNIllumination/gewinnspiele.git",
+      "https://github.com/TNIllumination/gewinnspiele?tab=readme",
+    ]) {
+      expect(normalizeRepo(eingabe)).toBe(REPO);
+    }
   });
 
-  it("schneidet alles hinter dem Namen ab", () => {
-    expect(normalizeRepo("https://github.com/TNIllumination/gewinnspiele/tree/main")).toBe(REPO);
-    expect(normalizeRepo("TNIllumination/gewinnspiele/settings/pages")).toBe(REPO);
+  // Das ist die Adresse, die man staendig vor Augen hat — und genau die hat
+  // frueher zu "https:/tnillumination.github.io" gefuehrt.
+  it("nimmt die Veröffentlichungsadresse an", () => {
+    expect(normalizeRepo("https://tnillumination.github.io/gewinnspiele")).toBe(
+      "tnillumination/gewinnspiele",
+    );
+    expect(normalizeRepo("tnillumination.github.io/gewinnspiele/")).toBe(
+      "tnillumination/gewinnspiele",
+    );
+  });
+
+  it("erkennt die persönliche Seite als eigenes Repository", () => {
+    expect(normalizeRepo("https://tnillumination.github.io")).toBe(
+      "tnillumination/tnillumination.github.io",
+    );
   });
 
   it("lässt die Kurzform in Ruhe und verträgt Leerzeichen", () => {
     expect(normalizeRepo("  TNIllumination/gewinnspiele  ")).toBe(REPO);
-    expect(normalizeRepo("")).toBe("");
+    expect(normalizeRepo("TNIllumination/gewinnspiele/settings/pages")).toBe(REPO);
+  });
+
+  // Der eigentliche Regressionstest: lieber nichts als ein halbes Ergebnis.
+  // Ein verstuemmelter Wert saehe fast richtig aus und fiele erst beim
+  // Hochladen auf.
+  it("gibt bei Unlesbarem nichts zurück, statt zu raten", () => {
+    for (const eingabe of [
+      "",
+      "   ",
+      "gewinnspiele",
+      "https://github.com/TNIllumination",
+      "https://beispiel.de",
+      "besitzer/na me",
+    ]) {
+      expect(normalizeRepo(eingabe)).toBe("");
+    }
   });
 });
 

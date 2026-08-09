@@ -347,8 +347,14 @@ Damit Teilnehmer die ausführliche Fassung auch aufrufen können, brauchst du ei
 4. Auf **Übersichtsseite erzeugen und hochladen**
 
 Fertig. Das Tool legt die Dateien an, lädt sie hoch und schaltet GitHub Pages ein.
-Nach ein bis zwei Minuten ist die Adresse erreichbar; trag sie unter
-**Einstellungen** ein, dann baut das Tool den Link für den Beitrag.
+Nach ein bis zwei Minuten ist die Adresse erreichbar. Eintragen musst du sie nicht —
+sie ergibt sich aus dem Repository und steht nach dem Speichern von selbst im Feld
+darunter.
+
+Ins Feld **Repository** darf beides: `deinname/gewinnspiele`, die GitHub-Adresse
+`github.com/deinname/gewinnspiele` oder die Veröffentlichungsadresse
+`deinname.github.io/gewinnspiele`. Versteht das Tool die Eingabe nicht, sagt es das —
+und lässt den alten Wert stehen, statt etwas Halbes zu speichern.
 
 Heißt dein Konto `TNIllumination` und das Repository `gewinnspiele`, lautet sie
 `https://tnillumination.github.io/gewinnspiele`. **Kleingeschrieben**, auch wenn dein

@@ -89,6 +89,11 @@
   `global-error.tsx` fangen den Rest ab. `scripts/e2e-030.mjs` prüft jetzt eine
   Fehlermeldung gegen den Produktionsbau — genau das fehlte.
 
+- **Fassung 0.4.2**: `normalizeRepo` entscheidet am Gastgebernamen statt blind an den
+  ersten zwei Pfadteilen — `besitzer.github.io/name` wird verstanden, Unlesbares gibt
+  `""` und `saveSettings` lehnt es mit Meldung ab. `publishBaseUrl` wird aus dem
+  Repository abgeleitet, weil zwei Felder für dieselbe Sache verwirrt haben.
+
 ## Als Nächstes
 
 1. PDF-Ziehungsprotokoll als Rechtsnachweis.

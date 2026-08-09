@@ -1,5 +1,11 @@
 # Was sich geändert hat
 
+## 0.4.2
+
+- **Das Repository-Feld versteht jetzt auch deine Veröffentlichungsadresse.** `https://deinname.github.io/gewinnspiele` wird richtig gelesen — vorher fiel der Name hinten weg und es blieb nur `https:/deinname.github.io` stehen
+- Unlesbare Eingaben werden abgelehnt und gemeldet, statt stillschweigend gekürzt zu werden. Der bisherige Wert bleibt dann stehen
+- **Ein Feld weniger zu grübeln**: Die Adresse deiner veröffentlichten Seiten ergibt sich aus dem Repository und wird beim Speichern selbst eingetragen
+
 ## 0.4.1
 
 - **Fehlermeldungen sagen wieder, was los ist.** Statt „minified React error #441" steht da der Satz, der gemeint war — etwa „Es ist noch kein Zugangsschlüssel hinterlegt"

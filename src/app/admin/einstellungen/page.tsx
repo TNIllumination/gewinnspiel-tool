@@ -110,8 +110,8 @@ export default async function EinstellungenPage() {
             </Field>
 
             <Field
-              label="Repository fürs Hochladen"
-              hint="Dein öffentliches Repository, z. B. deinname/gewinnspiele. Die volle Adresse aus dem Browser geht auch."
+              label="Repository — wohin hochgeladen wird"
+              hint="Dein öffentliches Repository, z. B. deinname/gewinnspiele. Beide Adressen aus dem Browser gehen auch: github.com/deinname/gewinnspiele oder deinname.github.io/gewinnspiele."
             >
               <input
                 className={inputClass}
@@ -139,8 +139,8 @@ export default async function EinstellungenPage() {
             </Field>
 
             <Field
-              label="Adresse deiner veröffentlichten Seiten"
-              hint="Optional. Wenn du die ausführlichen Teilnahmebedingungen auf GitHub Pages ablegst, trag hier die Basisadresse ein — dann baut das Tool den fertigen Link für den Beitrag."
+              label="Adresse — wo die Teilnehmer lesen"
+              hint="Ergibt sich aus dem Repository — lass es leer, dann trägt das Tool die Adresse beim Speichern selbst ein. Aus ihr baut es den Link für den Beitrag."
             >
               <input
                 className={inputClass}
