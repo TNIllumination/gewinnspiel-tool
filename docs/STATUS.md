@@ -28,13 +28,20 @@
   kompletten Ablauf ohne echte Daten.
 - **59 Tests**, alle grün (`npm test`).
 
+- **Oberfläche Phase 1 vollständig**: Ersteinrichtung und Login (Cookie-Session
+  mit `jose`, bcrypt-Hash), Dashboard, Gewinnspiel-Detailseite mit Import, Regeln,
+  Gewinnen, zweistufiger Ziehung und Verifikations-Checkliste; öffentliche
+  Startseite und Gewinnspielseite mit Fairness-Nachweis.
+- **End-to-End-Rauchtest** (`scripts/e2e-smoke.mjs`, Playwright): fährt den
+  kompletten Ablauf durch — 12 von 12 Schritten grün, inklusive Prüfung, dass der
+  Seed vor der Ziehung geheim bleibt und die Nachrücker-Automatik greift.
+
 ## Als Nächstes
 
-1. Oberfläche Phase 1: Gewinnspiel anlegen → importieren → Regeln → ziehen →
-   Verifikations-Checkliste mit Nachrücker-Automatik → öffentliche Gewinnerseite.
-2. Login (Single-User, Cookie-Session + Passwort-Hash).
-3. PDF-Ziehungsprotokoll.
-4. Rechtstexte und Löschautomatik (Phase 4).
+1. PDF-Ziehungsprotokoll als Rechtsnachweis.
+2. Rechtstexte (Impressum, Datenschutzerklärung, Verarbeitungsverzeichnis) und
+   automatische Löschfristen.
+3. Instagram-Anbindung (Phase 2) und YouTube (Phase 2b).
 
 ## Offen / zu beachten
 
