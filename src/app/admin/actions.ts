@@ -164,17 +164,50 @@ export async function importSandbox(giveawayId: string) {
   await runEvaluation(giveawayId);
 }
 
-export async function importManual(giveawayId: string, formData: FormData) {
-  const userId = await requireUser();
+export interface ImportPreviewResult {
+  format: string;
+  count: number;
+  /// Die ersten Treffer zur Sichtkontrolle.
+  sample: { username: string; text: string }[];
+  warnings: string[];
+}
 
-  const raw = String(formData.get("raw") ?? "");
+const FORMAT_LABELS: Record<string, string> = {
+  csv: "Tabelle mit Kopfzeile",
+  inline: "„Name: Text“ je Zeile",
+  blocks: "Name mit Kommentar darunter",
+  leer: "leer",
+};
+
+/// Schritt 1: nur lesen und zeigen, was erkannt wurde — nichts speichern.
+/// Bei einem Format, das erraten werden muss, gehoert die Sichtkontrolle
+/// vor den Schreibzugriff, nicht danach.
+export async function previewManualImport(
+  raw: string,
+): Promise<ImportPreviewResult> {
+  await requireUser();
+
   const parsed = parseManualImport(raw);
 
+  return {
+    format: FORMAT_LABELS[parsed.format] ?? parsed.format,
+    count: parsed.comments.length,
+    sample: parsed.comments.slice(0, 10).map((c) => ({
+      username: c.username,
+      text: c.text,
+    })),
+    warnings: parsed.warnings.slice(0, 20),
+  };
+}
+
+/// Schritt 2: uebernehmen. Erneut geparst, damit nichts aus dem Browser
+/// die gespeicherten Daten bestimmt.
+export async function confirmManualImport(giveawayId: string, raw: string) {
+  const userId = await requireUser();
+
+  const parsed = parseManualImport(raw);
   if (parsed.comments.length === 0) {
-    fail(
-      parsed.warnings[0] ??
-        "Aus der Eingabe ließen sich keine Kommentare lesen. Erwartet wird CSV mit Kopfzeile, „Name: Text“ oder Name und Text in abwechselnden Zeilen.",
-    );
+    fail("Aus der Eingabe ließen sich keine Kommentare lesen.");
   }
 
   const added = await storeComments(giveawayId, parsed.comments);
@@ -187,6 +220,7 @@ export async function importManual(giveawayId: string, formData: FormData) {
     detail: {
       source: "manual",
       format: parsed.format,
+      erkannt: parsed.comments.length,
       added,
       warnings: parsed.warnings.length,
     },

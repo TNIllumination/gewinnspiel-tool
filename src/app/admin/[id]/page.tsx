@@ -5,19 +5,22 @@ import { getSessionUserId } from "@/lib/auth";
 import { getPlatform, type PlatformId } from "@/platforms/base";
 import type { Rejection } from "@/rules/engine";
 import { RULE_LABELS } from "@/rules/types";
+import { describeRules } from "@/rules/summary";
 import {
   addPrize,
   clearEntries,
   commitEntrants,
   completeGiveaway,
+  confirmManualImport,
   deletePrize,
-  importManual,
   importSandbox,
   performDraw,
+  previewManualImport,
   saveRules,
   submitVerification,
 } from "../actions";
 import { ActionForm } from "@/components/action-form";
+import { ManualImport } from "@/components/manual-import";
 import {
   Badge,
   Card,
@@ -150,19 +153,11 @@ export default async function GiveawayPage({
               </p>
             </ActionForm>
           ) : (
-            <ActionForm action={importManual.bind(null, id)} submitLabel="Einlesen">
-              <Field
-                label="Kommentare einfügen"
-                hint="Erkannt werden: CSV mit Kopfzeile (Benutzer;Kommentar;Datum), „Name: Text“ pro Zeile, oder Name und Text in abwechselnden Zeilen."
-              >
-                <textarea
-                  className={`${inputClass} h-40 font-mono text-xs`}
-                  name="raw"
-                  required
-                  placeholder={"@anna: Ich bin dabei @ben @carla\n@ben: Auch dabei @anna @dora"}
-                />
-              </Field>
-            </ActionForm>
+            <ManualImport
+              preview={previewManualImport}
+              confirm={confirmManualImport.bind(null, id)}
+              platformLabel={platform.label}
+            />
           )}
 
           {total > 0 ? (
@@ -184,6 +179,23 @@ export default async function GiveawayPage({
           <CardTitle hint="Nach dem Speichern werden alle Teilnahmen sofort neu bewertet.">
             Teilnahmebedingungen
           </CardTitle>
+
+          <div className="mb-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">
+              Das gilt gerade
+            </p>
+            <ul className="list-inside list-disc space-y-1 text-sm text-slate-700">
+              {describeRules(
+                giveaway.rules.map((r) => ({
+                  type: r.type,
+                  config: r.config,
+                  enabled: r.enabled,
+                })),
+              ).map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+          </div>
 
           <ActionForm action={saveRules.bind(null, id)} submitLabel="Regeln speichern & prüfen">
             <div className="grid gap-4 sm:grid-cols-2">

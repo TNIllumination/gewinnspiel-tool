@@ -35,6 +35,17 @@
 - **End-to-End-Rauchtest** (`scripts/e2e-smoke.mjs`, Playwright): fährt den
   kompletten Ablauf durch — 12 von 12 Schritten grün, inklusive Prüfung, dass der
   Seed vor der Ziehung geheim bleibt und die Nachrücker-Automatik greift.
+- **TikTok-Import gehärtet**: `parseBlocks` erkennt Like-Zahlen, Datumsangaben und
+  „Antworten" als Beiwerk und sortiert sie aus. Mehrzeilige Kommentare bleiben
+  zusammen. Vorher wäre eine Like-Zahl wie „12" als Teilnehmerin importiert worden.
+- **Import-Vorschau**: Einfügen → Prüfen → Übernehmen. Vor dem Übernehmen wird
+  nichts gespeichert; angezeigt werden erkanntes Format, Trefferzahl, die ersten
+  zehn Zeilen und alle nicht zuordenbaren Zeilen.
+- **Klartext-Zusammenfassung der Regeln** (`src/rules/summary.ts`): „Das gilt gerade"
+  sagt ausdrücklich auch, was NICHT gefordert ist — ein leeres Feld sieht sonst aus
+  wie „noch nicht eingestellt".
+- **Zweiter E2E-Test** (`scripts/e2e-tiktok-import.mjs`): TikTok-Paste importieren,
+  Vorschau prüfen, Regeln ohne Markier-Pflicht setzen — 10 von 10 grün.
 
 ## Als Nächstes
 
