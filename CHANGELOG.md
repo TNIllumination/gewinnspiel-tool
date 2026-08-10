@@ -1,5 +1,14 @@
 # Was sich geändert hat
 
+## 0.9.0
+
+- **Eigene Kommentare kommen nicht mehr in den Lostopf.** Bisher konnte man sein eigenes Gewinnspiel gewinnen — beim ersten echten Abruf waren die 66 übernommenen Teilnahmen ausgerechnet die eigenen Kommentare. Erkannt werden sie an Metas Feld `user`, ersatzweise am Kontonamen
+- **Antworten auf Kommentare zählen nicht mehr als Teilnahme.** Teilnahme ist ein Kommentar unter dem Beitrag, nicht eine Antwort unter einem fremden Kommentar
+- **Fehlen die Benutzernamen reihenweise, wird nichts gespeichert.** Bei über einem Viertel bricht der Abruf ab. Ein halber Lostopf sieht aus wie ein Erfolg und enthält die falschen Leute — das ist schlimmer als gar keiner. Einzelne fehlende Namen (gelöschte Konten) bleiben ein Hinweis
+- **Neuer Kasten „Was hat Instagram geantwortet?"** mit Status, Seiten, Anzahl und der Antwort im Original — **der Zugangsschlüssel ist entfernt**. Instagram antwortet in diesem Bereich mehrfach unvollständig statt ablehnend; wer die Felder sehen kann, weiß in Sekunden Bescheid, statt zu raten
+- Die Warnung zu fehlenden Namen behauptet nicht mehr „meist gelöschte Konten". Bei 90 von 156 war das eine faule Vermutung, die vom eigentlichen Problem weggeführt hat
+- Abgerufen werden jetzt auch die Felder `user`, `parent_id` und `from{id,username}` — ohne sie ließ sich nichts davon unterscheiden
+
 ## 0.8.2
 
 - **Wenn Instagram nichts liefert, steht jetzt der wahre Grund da.** Vorher hieß es „Ist es der richtige Beitrag?" — und schickte damit zum Suchen an eine Stelle, an der nichts falsch war

@@ -169,6 +169,16 @@ try {
     ok("Auch die Beitragsliste scheitert lesbar", beitragsFehler.slice(0, 55));
   }
 
+  // ── Der Diagnosekasten trägt niemals den Zugangsschlüssel ─────────────────
+  // Wer ihn hat, kann im Namen des Kontos handeln. Er darf in nichts landen,
+  // was im Browser steht — auch nicht in einem technischen Anhang.
+  const seiteMitDiagnose = await page.content();
+  if (/IGAA_erfunden_ungueltig/.test(seiteMitDiagnose)) {
+    no("Diagnose", "der Zugangsschlüssel steht im Seitenquelltext!");
+  } else {
+    ok("Kein Zugangsschlüssel im Seitenquelltext");
+  }
+
   // ── TikTok bietet den Abruf gar nicht erst an ─────────────────────────────
   // Die Capabilities steuern die Oberfläche — was die Schnittstelle nicht
   // hergibt, darf nicht als Knopf dastehen.

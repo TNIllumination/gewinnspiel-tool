@@ -26,7 +26,7 @@
   Zeilen werden gemeldet, nicht verschluckt.
 - **Testmodus** (`src/platforms/sandbox.ts`): erfundene Teilnehmer für den
   kompletten Ablauf ohne echte Daten.
-- **273 Tests**, alle grün (`npm test`).
+- **286 Tests**, alle grün (`npm test`).
 
 - **Oberfläche Phase 1 vollständig**: Ersteinrichtung und Login (Cookie-Session
   mit `jose`, bcrypt-Hash), Dashboard, Gewinnspiel-Detailseite mit Import, Regeln,
@@ -174,6 +174,18 @@
   sortiert, und sie trennt **App-Review vom Schalter Entwicklung/Live** — Meta legt
   diese Verwechslung selbst nahe. Beide Textbausteine liegen als reine Funktionen
   im Modul statt in `actions.ts`, damit sie ohne Datenbank pruefbar sind.
+
+- **Fassung 0.9.0**: Der erste echte Abruf lieferte 66 **eigene** Kommentare und
+  uebersprang 90 fremde — bei denen fehlte der Benutzername. Metas Referenz erklaert
+  beides: `user` setzt Meta nur bei Kommentaren des App-Nutzers selbst, und der
+  Zugriff auf `username` verlangt seit 27.08.2024 `instagram_business_manage_comments`.
+  Fehlt die Berechtigung am **Schluessel**, kommen die Kommentare trotzdem — nur ohne
+  Namen und ohne Fehler. `holeKommentare` fordert jetzt `user`, `parent_id` und
+  `from{id,username}` mit an, sortiert eigene Kommentare und Antworten aus und bricht
+  ueber `namenFehlen` ab, sobald mehr als ein Viertel der Namen fehlt (Rueckgabewert
+  statt Ausnahme, sonst ginge die Diagnose verloren). `Diagnose` samt
+  `ohneSchluessel` zeigt die Rohantwort im Aufklappkasten — **ohne** Zugangsschluessel,
+  durch Modultest und E2E abgesichert. Zwei Runden Raterei waeren damit entfallen.
 
 ## Als Nächstes
 

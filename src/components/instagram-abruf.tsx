@@ -11,6 +11,15 @@ interface Beitrag {
   kommentare: number | null;
 }
 
+/// Was Instagram tatsächlich geantwortet hat — ohne den Zugangsschlüssel.
+interface Diagnose {
+  url: string;
+  status: number;
+  seiten: number;
+  eintraege: number;
+  antwort: string;
+}
+
 /// Beitrag auswählen und die Kommentare abrufen.
 ///
 /// Zwei Schritte, weil sie zwei verschiedene Fragen beantworten: *Welcher
@@ -39,6 +48,7 @@ export function InstagramAbruf({
     added?: number;
     skipped?: number;
     warnings?: string[];
+    diagnose?: Diagnose;
     fehler?: string;
   }>;
   gewaehlt: string | null;
@@ -49,6 +59,7 @@ export function InstagramAbruf({
   const [link, setLink] = useState("");
   const [meldung, setMeldung] = useState<string | null>(null);
   const [hinweise, setHinweise] = useState<string[]>([]);
+  const [diagnose, setDiagnose] = useState<Diagnose | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -56,6 +67,7 @@ export function InstagramAbruf({
     setFehler(null);
     setMeldung(null);
     setHinweise([]);
+    setDiagnose(null);
     startTransition(async () => {
       try {
         await fn();
@@ -107,6 +119,8 @@ export function InstagramAbruf({
             onClick={() =>
               run(async () => {
                 const ergebnis = await abrufen();
+                // Auch im Fehlerfall — dort wird sie am dringendsten gebraucht.
+                setDiagnose(ergebnis.diagnose ?? null);
                 if (ergebnis.fehler) {
                   setFehler(ergebnis.fehler);
                   return;
@@ -263,6 +277,34 @@ export function InstagramAbruf({
         >
           {fehler}
         </p>
+      ) : null}
+
+      {/* Instagram antwortet in diesem Bereich mehrfach unvollständig statt
+          ablehnend: mal ohne Kommentare, mal ohne Benutzernamen — jedes Mal
+          ohne Fehler. Wer sehen kann, welche Felder ankamen, weiß nach zehn
+          Sekunden Bescheid, statt zu raten. */}
+      {diagnose ? (
+        <details className="mt-3 text-xs text-slate-600">
+          <summary className="cursor-pointer font-medium text-slate-700">
+            Was hat Instagram geantwortet?
+          </summary>
+          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+            <dt className="text-slate-500">Status</dt>
+            <dd>{diagnose.status}</dd>
+            <dt className="text-slate-500">Seiten</dt>
+            <dd>{diagnose.seiten}</dd>
+            <dt className="text-slate-500">Einträge</dt>
+            <dd>{diagnose.eintraege}</dd>
+            <dt className="text-slate-500">Anfrage</dt>
+            <dd className="break-all font-mono">{diagnose.url}</dd>
+          </dl>
+          <p className="mt-2 text-slate-500">
+            Erste Antwort, gekürzt. Der Zugangsschlüssel ist entfernt:
+          </p>
+          <pre className="mt-1 max-h-64 overflow-auto rounded bg-slate-100 p-2 font-mono text-[11px] whitespace-pre-wrap break-all">
+            {diagnose.antwort}
+          </pre>
+        </details>
       ) : null}
     </div>
   );

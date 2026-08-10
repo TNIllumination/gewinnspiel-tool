@@ -1741,10 +1741,19 @@ export async function importInstagram(giveawayId: string) {
       );
     }
 
-    const { comments, warnings } = await holeKommentare({
+    // Der Kontoname entscheidet mit darueber, welche Kommentare eigene sind —
+    // die Rueckfalllinie, falls Meta das Feld `user` nicht mitschickt.
+    const settings = await db.settings.findUnique({ where: { id: "settings" } });
+
+    const { comments, warnings, abbruch, diagnose } = await holeKommentare({
       token,
       mediaId: quelle.externalId,
+      eigenerName: settings?.instagramHandle ?? "",
     });
+
+    // Fehler als Rueckgabewert statt ueber `fail()`: So kommt die Diagnose
+    // mit, und die wird genau dann gebraucht, wenn etwas schiefging.
+    if (abbruch) return { fehler: abbruch, diagnose };
 
     // Instagrams eigene Zahl entscheidet, was hier los ist. Sie schlaegt nicht
     // fehl, wenn sie fehlschlaegt: Kommen Kommentare an, ist der Abruf auch
@@ -1753,7 +1762,7 @@ export async function importInstagram(giveawayId: string) {
       () => null,
     );
 
-    if (comments.length === 0) fail(nichtsGeliefert(gezaehlt));
+    if (comments.length === 0) return { fehler: nichtsGeliefert(gezaehlt), diagnose };
 
     const hinweis = hinweisZuAntworten(gezaehlt, comments.length);
     if (hinweis) warnings.push(hinweis);
@@ -1776,7 +1785,7 @@ export async function importInstagram(giveawayId: string) {
     await runEvaluation(giveawayId);
 
     revalidatePath(`/admin/${giveawayId}`);
-    return { ...result, warnings };
+    return { ...result, warnings, diagnose };
   });
 }
 

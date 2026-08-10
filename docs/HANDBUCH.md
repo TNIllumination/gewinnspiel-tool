@@ -161,6 +161,42 @@ dann, in dieser Reihenfolge:
 Der Kopierimport funktioniert währenddessen unverändert weiter — du bist also nie
 blockiert.
 
+### Wenn Kommentare ohne Benutzernamen kommen
+
+Der zweite Stolperstein derselben Art. Instagram liefert die Kommentare, lässt aber
+den Namen weg — **wieder ohne Fehlermeldung**. Auffällig ist dann, dass ausgerechnet
+*deine eigenen* Kommentare durchkommen: Die kennt Instagram ohnehin.
+
+Grund ist die Berechtigung `instagram_business_manage_comments`. Seit August 2024
+braucht der Zugriff auf fremde Benutzernamen sie ausdrücklich. Sie hängt **am
+Schlüssel**, nicht am Konto — in der Konsole angehakt zu sein reicht nicht, wenn dein
+Schlüssel älter ist als das Häkchen. **Erzeug einen neuen und trag ihn ein.**
+
+Fehlt bei mehr als einem Viertel der Kommentare der Name, **speichert das Tool
+nichts**. Ein halber Lostopf wäre schlimmer als keiner: Er sieht aus wie ein Erfolg,
+enthält aber die falschen Leute. Einzelne fehlende Namen — gelöschte Konten — bleiben
+dagegen ein Hinweis und blockieren nichts.
+
+### Was hat Instagram geantwortet?
+
+Unter dem Abruf steht ein aufklappbarer Kasten mit genau dem: Status, Anzahl Seiten
+und Einträge und der ersten Antwort im Original. **Der Zugangsschlüssel ist darin
+entfernt.**
+
+Wenn wieder etwas unerklärlich ist, klapp ihn auf. Dort steht schwarz auf weiß, ob
+`username` mitkommt, ob `user` dasteht oder ob die Liste schlicht leer ist — und
+damit die Antwort auf die Frage, die man sonst nur raten kann.
+
+### Wer nicht mitspielt
+
+Zwei Sorten Kommentare werden ausgeschlossen und in der Meldung ausgewiesen:
+
+- **Deine eigenen.** Wer das Gewinnspiel veranstaltet, nimmt nicht daran teil. Metas
+  Feld `user` verrät sie zuverlässig; ersatzweise dient dein Kontoname
+- **Antworten auf Kommentare.** Teilnahme ist ein Kommentar *unter dem Beitrag* —
+  sonst käme jemand in den Topf, weil er unter einem fremden Kommentar „dabei"
+  geschrieben hat
+
 **Zwei Wege bei Meta — nimm den richtigen.** In der Meta-Dokumentation gibt es
 „Instagram-API mit Facebook-Login" (verlangt eine verknüpfte Facebook-Seite) und
 **„API-Einrichtung mit Instagram-Login"**. Das Tool benutzt den zweiten Weg: keine

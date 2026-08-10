@@ -5,7 +5,9 @@ import {
   holeBeitraege,
   holeKommentare,
   kuerzelAusLink,
+  namenFehlen,
   nichtsGeliefert,
+  ohneSchluessel,
   pruefeZugang,
   sucheBeitragPerLink,
   verlaengereToken,
@@ -109,11 +111,18 @@ describe("holeKommentare", () => {
 
   // Ohne Namen ist eine Teilnahme wertlos — sie darf nicht als leerer Eintrag
   // im Lostopf landen, aber verschwiegen werden darf sie auch nicht.
-  it("überspringt Kommentare ohne Benutzernamen und meldet es", async () => {
+  it("überspringt einzelne Kommentare ohne Benutzernamen und meldet es", async () => {
+    // Einzelne fehlende Namen sind Alltag (geloeschte Konten) und bleiben ein
+    // Hinweis. Fehlen sie reihenweise, greift stattdessen `namenFehlen` und
+    // bricht ab — das ist eine eigene Reihe weiter unten.
     antworten({
       body: {
         data: [
           kommentar("1", "anna_berg", "dabei"),
+          kommentar("3", "ben_wald", "dabei"),
+          kommentar("4", "carla_stein", "dabei"),
+          kommentar("5", "dora_mond", "dabei"),
+          kommentar("6", "erik_falke", "dabei"),
           { id: "2", text: "dabei", timestamp: "2026-08-01T10:00:00+0000" },
         ],
         paging: {},
@@ -121,7 +130,7 @@ describe("holeKommentare", () => {
     });
 
     const { comments, warnings } = await holeKommentare({ token: "T", mediaId: "42" });
-    expect(comments).toHaveLength(1);
+    expect(comments).toHaveLength(5);
     expect(warnings.join(" ")).toMatch(/1 Kommentar übersprungen/);
   });
 
@@ -455,5 +464,163 @@ describe("hinweisZuAntworten", () => {
 
   it("schweigt, wenn mehr ankam als Instagram zählt", () => {
     expect(hinweisZuAntworten(60, 64)).toBeNull();
+  });
+});
+
+// ── Fassung 0.9.0 ───────────────────────────────────────────────────────────
+// Der erste echte Abruf lieferte 66 eigene Kommentare und übersprang 90 fremde,
+// weil bei denen der Benutzername fehlte. Genau verkehrt herum.
+
+const fremd = (id: string, username: string, text = "Ich bin dabei") => ({
+  id,
+  username,
+  text,
+  timestamp: "2026-08-01T10:00:00+0000",
+  like_count: 1,
+});
+
+/// Meta setzt `user` **nur** bei Kommentaren des App-Nutzers selbst.
+const eigen = (id: string, username: string) => ({
+  ...fremd(id, username, "Danke euch allen!"),
+  user: { id: "17841400000" },
+});
+
+const eineSeite = (eintraege: unknown[]) => ({
+  body: { data: eintraege, paging: { cursors: { after: "ENDE" } } },
+});
+
+describe("eigene Kommentare gehören nicht in den Lostopf", () => {
+  it("erkennt sie am Feld user, das Meta nur dafür setzt", async () => {
+    antworten(eineSeite([fremd("1", "anna_berg"), eigen("2", "tnillumination")]));
+
+    const { comments, warnings } = await holeKommentare({ token: "T", mediaId: "42" });
+    expect(comments.map((c) => c.username)).toEqual(["anna_berg"]);
+    expect(warnings.join(" ")).toMatch(/1 eigene[nr]? Kommentar übersprungen/);
+  });
+
+  // Rückfalllinie: Fehlt `user`, entscheidet der Kontoname. Gross- und
+  // Kleinschreibung darf dabei nicht zählen.
+  it("erkennt sie ersatzweise am Kontonamen", async () => {
+    antworten(eineSeite([fremd("1", "anna_berg"), fremd("2", "TNIllumination")]));
+
+    const { comments } = await holeKommentare({
+      token: "T",
+      mediaId: "42",
+      eigenerName: "@tnillumination",
+    });
+    expect(comments.map((c) => c.username)).toEqual(["anna_berg"]);
+  });
+
+  it("lässt fremde Kommentare unberührt, wenn kein Name gesetzt ist", async () => {
+    antworten(eineSeite([fremd("1", "anna_berg"), fremd("2", "ben_wald")]));
+    const { comments } = await holeKommentare({ token: "T", mediaId: "42" });
+    expect(comments).toHaveLength(2);
+  });
+});
+
+describe("Antworten auf Kommentare zählen nicht", () => {
+  it("erkennt sie an parent_id", async () => {
+    antworten(
+      eineSeite([
+        fremd("1", "anna_berg"),
+        { ...fremd("2", "ben_wald"), parent_id: "1" },
+      ]),
+    );
+
+    const { comments, warnings } = await holeKommentare({ token: "T", mediaId: "42" });
+    expect(comments.map((c) => c.username)).toEqual(["anna_berg"]);
+    expect(warnings.join(" ")).toMatch(/1 Antwort auf Kommentare übersprungen/);
+  });
+});
+
+describe("namenFehlen", () => {
+  // Der beobachtete Fall: 90 von 156 ohne Namen.
+  it("bricht ab, wenn die Namen reihenweise fehlen", () => {
+    const text = namenFehlen(90, 156);
+    expect(text).toMatch(/90 von 156/);
+    expect(text).toMatch(/nichts\*{0,2} gespeichert/);
+    expect(text).toMatch(/instagram_business_manage_comments/);
+    expect(text).toMatch(/Was hat Instagram geantwortet/);
+  });
+
+  // Ein einzelnes gelöschtes Konto darf einen sauberen Abruf nicht blockieren.
+  it("schweigt bei wenigen fehlenden Namen", () => {
+    expect(namenFehlen(1, 156)).toBeNull();
+    expect(namenFehlen(39, 156)).toBeNull();
+  });
+
+  it("schweigt, wenn gar nichts fehlt", () => {
+    expect(namenFehlen(0, 156)).toBeNull();
+    expect(namenFehlen(0, 0)).toBeNull();
+  });
+
+  it("speichert im Abbruchfall wirklich nichts", async () => {
+    antworten(
+      eineSeite([
+        fremd("1", "anna_berg"),
+        { id: "2", text: "dabei", timestamp: "2026-08-01T10:00:00+0000" },
+        { id: "3", text: "dabei", timestamp: "2026-08-01T10:00:00+0000" },
+        { id: "4", text: "dabei", timestamp: "2026-08-01T10:00:00+0000" },
+      ]),
+    );
+
+    const { comments, abbruch } = await holeKommentare({ token: "T", mediaId: "42" });
+    expect(abbruch).toMatch(/3 von 4/);
+    expect(comments).toEqual([]);
+  });
+});
+
+describe("Diagnose", () => {
+  // Der wichtigste Test dieser Reihe: Wer den Schlüssel hat, kann im Namen des
+  // Kontos handeln. Er darf in nichts landen, was im Browser angezeigt wird.
+  it("enthält den Zugangsschlüssel nirgends", async () => {
+    antworten(eineSeite([fremd("1", "anna_berg")]));
+    const { diagnose } = await holeKommentare({
+      token: "GEHEIM_IGAA_XYZ",
+      mediaId: "42",
+    });
+
+    expect(diagnose.url).not.toMatch(/GEHEIM_IGAA_XYZ/);
+    expect(diagnose.antwort).not.toMatch(/GEHEIM_IGAA_XYZ/);
+    expect(diagnose.url).toMatch(/access_token=entfernt/);
+  });
+
+  it("hält Status, Seiten und Anzahl fest", async () => {
+    antworten(
+      {
+        body: {
+          data: [fremd("1", "anna_berg")],
+          paging: { cursors: { after: "C" }, next: "https://…" },
+        },
+      },
+      eineSeite([fremd("2", "ben_wald")]),
+    );
+
+    const { diagnose } = await holeKommentare({ token: "T", mediaId: "42" });
+    expect(diagnose.status).toBe(200);
+    expect(diagnose.seiten).toBe(2);
+    expect(diagnose.eintraege).toBe(2);
+  });
+
+  // Genau daran hätte man die fehlenden Namen sofort gesehen.
+  it("zeigt die tatsächlich gelieferten Felder", async () => {
+    antworten(eineSeite([{ id: "1", text: "dabei" }]));
+    const { diagnose } = await holeKommentare({ token: "T", mediaId: "42" });
+    expect(diagnose.antwort).toMatch(/"text":"dabei"/);
+    expect(diagnose.antwort).not.toMatch(/username/);
+  });
+});
+
+describe("ohneSchluessel", () => {
+  it("ersetzt den Schlüssel, behält den Rest", () => {
+    const url = ohneSchluessel(
+      "https://graph.instagram.com/v25.0/42/comments?fields=id%2Ctext&access_token=IGAA_geheim&limit=50",
+    );
+    expect(url).not.toMatch(/IGAA_geheim/);
+    expect(url).toMatch(/limit=50/);
+  });
+
+  it("kommt auch mit unlesbaren Adressen zurecht", () => {
+    expect(ohneSchluessel("kaputt?access_token=IGAA_geheim")).not.toMatch(/IGAA_geheim/);
   });
 });

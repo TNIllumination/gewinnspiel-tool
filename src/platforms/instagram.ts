@@ -60,6 +60,9 @@ export interface NeuerSchluessel {
 interface Antwort {
   status: number;
   data: Record<string, unknown>;
+  /// Die angefragte Adresse **mit** Schluessel — nur fuer den Aufrufer.
+  /// Vor jeder Anzeige durch `ohneSchluessel` schicken.
+  url: string;
 }
 
 async function hole(pfad: string, params: Record<string, string>): Promise<Antwort> {
@@ -87,7 +90,7 @@ async function hole(pfad: string, params: Record<string, string>): Promise<Antwo
   }
 
   if (!res.ok) throw new InstagramError(uebersetze(res.status, data));
-  return { status: res.status, data };
+  return { status: res.status, data, url: url.toString() };
 }
 
 /// Uebersetzt Metas Fehler in einen Satz, mit dem jemand etwas anfangen kann.
@@ -397,6 +400,51 @@ export interface AbrufErgebnis {
   warnings: string[];
   /// Wurde bei MAX_KOMMENTARE abgeschnitten?
   abgeschnitten: boolean;
+  /// Gesetzt, wenn nichts gespeichert werden darf — mit dem Grund im Klartext.
+  /// `comments` ist dann leer.
+  abbruch: string | null;
+  /// Was Instagram tatsaechlich geantwortet hat.
+  diagnose: Diagnose;
+}
+
+/// Die Rohantwort, so weit sie gezeigt werden darf.
+///
+/// Entstanden aus zwei Runden Raterei: Instagram lieferte erst gar keine
+/// Kommentare, dann welche ohne Namen — beides ohne Fehlermeldung. Beide Male
+/// haette ein Blick in die tatsaechliche Antwort sofort gezeigt, welche Felder
+/// ankommen und welche fehlen.
+export interface Diagnose {
+  /// Angefragte Adresse **ohne** den Zugangsschluessel.
+  url: string;
+  status: number;
+  seiten: number;
+  /// Wie viele Eintraege Instagram insgesamt geliefert hat.
+  eintraege: number;
+  /// Die erste Antwort, gekuerzt.
+  antwort: string;
+}
+
+/// Wie viel der ersten Antwort gezeigt wird. Genug, um die Feldnamen zu sehen.
+const DIAGNOSE_LAENGE = 2000;
+
+/// Entfernt den Zugangsschluessel aus einer Adresse.
+///
+/// Der Schluessel darf nirgends im Browser landen — nicht im Diagnosekasten,
+/// nicht in einer Fehlermeldung, nirgends. Wer ihn hat, kann im Namen des
+/// Kontos handeln.
+export function ohneSchluessel(url: string): string {
+  try {
+    const u = new URL(url);
+    // Bewusst ein ASCII-Wort: Ein „…" wuerde beim Zusammenbauen der Adresse
+    // zu %E2%80%A6 und waere im Diagnosekasten nicht mehr als Platzhalter
+    // zu erkennen.
+    if (u.searchParams.has("access_token")) {
+      u.searchParams.set("access_token", "entfernt");
+    }
+    return u.toString();
+  } catch {
+    return url.replace(/access_token=[^&]*/g, "access_token=entfernt");
+  }
 }
 
 /// Alle Kommentare unter einem Beitrag, ueber alle Seiten hinweg.
@@ -404,12 +452,20 @@ export async function holeKommentare(optionen: {
   token: string;
   mediaId: string;
   maxComments?: number;
+  /// Kontoname des verbundenen Kontos — dessen eigene Kommentare zaehlen nicht.
+  eigenerName?: string;
 }): Promise<AbrufErgebnis> {
   const grenze = Math.min(optionen.maxComments ?? MAX_KOMMENTARE, MAX_KOMMENTARE);
+  const eigenerName = (optionen.eigenerName ?? "").trim().replace(/^@/, "").toLowerCase();
+
   const comments: CommentInput[] = [];
   const warnings: string[] = [];
   let ohneNamen = 0;
+  let eigene = 0;
+  let antworten = 0;
+  let eintraege = 0;
   let abgeschnitten = false;
+  let diagnose: Diagnose | null = null;
 
   // Instagram blaettert ueber einen Cursor. Die erste Seite kommt ueber den
   // Pfad, jede weitere ueber `after` — die vollstaendige `next`-Adresse
@@ -419,14 +475,30 @@ export async function holeKommentare(optionen: {
 
   do {
     const params: Record<string, string> = {
-      fields: "id,text,username,timestamp,like_count",
+      // `user` liefert Meta nur bei eigenen Kommentaren — der verlaessliche
+      // Weg, sie zu erkennen. `parent_id` markiert Antworten auf Kommentare.
+      // `from` ist die zweite Schreibweise des Namens.
+      fields: "id,text,timestamp,like_count,username,parent_id,from{id,username},user",
       limit: String(SEITENGROESSE),
       access_token: optionen.token,
     };
     if (after) params.after = after;
 
-    const { data }: Antwort = await hole(`/${optionen.mediaId}/comments`, params);
+    const antwort: Antwort = await hole(`/${optionen.mediaId}/comments`, params);
+    const { data } = antwort;
     const seite = Array.isArray(data.data) ? (data.data as Record<string, unknown>[]) : [];
+    eintraege += seite.length;
+
+    // Nur die erste Antwort — sie zeigt bereits, welche Felder ankommen.
+    if (!diagnose) {
+      diagnose = {
+        url: ohneSchluessel(antwort.url),
+        status: antwort.status,
+        seiten: 0,
+        eintraege: 0,
+        antwort: kuerze(JSON.stringify(data), DIAGNOSE_LAENGE),
+      };
+    }
 
     for (const k of seite) {
       if (comments.length >= grenze) {
@@ -434,16 +506,32 @@ export async function holeKommentare(optionen: {
         break;
       }
 
+      // Antworten auf Kommentare sind keine Teilnahme: Teilnahme ist ein
+      // Kommentar **unter dem Beitrag**. Sonst kaeme jemand in den Topf, weil
+      // er unter einem fremden Kommentar „dabei" geschrieben hat.
+      if (String(k.parent_id ?? "").trim()) {
+        antworten += 1;
+        continue;
+      }
+
       const username = benutzername(k);
       const text = String(k.text ?? "").trim();
 
-      // Ein Kommentar ohne Namen laesst sich niemandem zuordnen — und ohne
-      // Zuordnung ist er als Teilnahme wertlos. Instagram laesst den Namen
-      // bei geloeschten Konten weg.
+      // Fehlt der Name, laesst sich der Kommentar niemandem zuordnen. Warum er
+      // fehlt, entscheidet `namenFehlen` — nicht jeder Fall ist derselbe.
       if (!username) {
         ohneNamen += 1;
         continue;
       }
+
+      // Der Veranstalter kann sein eigenes Gewinnspiel nicht gewinnen.
+      // `user` setzt Meta nur bei eigenen Kommentaren; der Namensvergleich ist
+      // die Rueckfalllinie, falls das Feld fehlt.
+      if (String(k.user ?? "").trim() || username.toLowerCase() === eigenerName) {
+        eigene += 1;
+        continue;
+      }
+
       if (!text) continue;
 
       comments.push({
@@ -470,10 +558,28 @@ export async function holeKommentare(optionen: {
     }
   } while (after && !abgeschnitten);
 
+  // Fehlen die Namen reihenweise, ist ein Teilimport schlimmer als keiner:
+  // Er fuellt den Lostopf mit den falschen Leuten, und das faellt beim
+  // Durchsehen nicht auf. Bewusst als Rueckgabewert statt als Ausnahme —
+  // sonst ginge die Diagnose verloren, und die wird genau hier gebraucht.
+  const abbruch = namenFehlen(ohneNamen, ohneNamen + comments.length + eigene);
+
   if (ohneNamen > 0) {
     warnings.push(
       `${ohneNamen} Kommentar${ohneNamen === 1 ? "" : "e"} übersprungen — ` +
-        "Instagram hat keinen Benutzernamen mitgeschickt (meist gelöschte Konten).",
+        "Instagram hat dazu keinen Benutzernamen mitgeschickt.",
+    );
+  }
+  if (eigene > 0) {
+    warnings.push(
+      `${eigene} eigene Kommentar${eigene === 1 ? "" : "e"} übersprungen — ` +
+        "wer das Gewinnspiel veranstaltet, nimmt daran nicht teil.",
+    );
+  }
+  if (antworten > 0) {
+    warnings.push(
+      `${antworten} Antwort${antworten === 1 ? "" : "en"} auf Kommentare übersprungen — ` +
+        "als Teilnahme zählt ein Kommentar unter dem Beitrag.",
     );
   }
   if (abgeschnitten) {
@@ -483,7 +589,51 @@ export async function holeKommentare(optionen: {
     );
   }
 
-  return { comments, warnings, abgeschnitten };
+  return {
+    comments: abbruch ? [] : comments,
+    warnings,
+    abgeschnitten,
+    abbruch,
+    diagnose: { ...(diagnose ?? LEERE_DIAGNOSE), seiten, eintraege },
+  };
+}
+
+const LEERE_DIAGNOSE: Diagnose = {
+  url: "",
+  status: 0,
+  seiten: 0,
+  eintraege: 0,
+  antwort: "(keine Antwort)",
+};
+
+function kuerze(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max)}… (gekürzt)` : text;
+}
+
+/// Fehlen die Benutzernamen so haeufig, dass der Import unbrauchbar waere?
+///
+/// Ein einzelnes geloeschtes Konto darf einen sauberen Abruf nicht blockieren —
+/// deshalb eine Schwelle statt „einer reicht". Ueber der Schwelle stimmt aber
+/// etwas Grundsaetzliches nicht, und dann ist ein Teilimport die schlechteste
+/// aller Moeglichkeiten: Er sieht aus wie ein Erfolg.
+///
+/// Die Meldung behauptet **keine** Ursache als sicher. Bei genau dieser Frage
+/// habe ich mehrfach danebengelegen — die Antwort steht im Diagnosekasten,
+/// nicht in einer Vermutung.
+export function namenFehlen(ohneNamen: number, gesamt: number): string | null {
+  if (gesamt === 0 || ohneNamen === 0) return null;
+  if (ohneNamen <= gesamt / 4) return null;
+
+  return (
+    `Bei ${ohneNamen} von ${gesamt} Kommentaren hat Instagram keinen ` +
+    "Benutzernamen mitgeschickt. Ohne Namen lässt sich niemand zuordnen, " +
+    "deshalb wurde **nichts** gespeichert — ein halber Lostopf wäre schlimmer " +
+    "als keiner. Der wahrscheinlichste Grund: Dein Zugangsschlüssel trägt die " +
+    "Berechtigung instagram_business_manage_comments nicht. Sie hängt am " +
+    "Schlüssel, nicht am Konto — erzeug in der Meta-Konsole einen neuen, auch " +
+    "wenn die Berechtigung dort längst angehakt ist. Was Instagram genau " +
+    "geantwortet hat, steht unter „Was hat Instagram geantwortet?“."
+  );
 }
 
 /// Der Name steht je nach Schnittstellenfassung direkt drin oder unter `from`.
