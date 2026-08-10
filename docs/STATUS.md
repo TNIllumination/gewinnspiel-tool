@@ -26,7 +26,7 @@
   Zeilen werden gemeldet, nicht verschluckt.
 - **Testmodus** (`src/platforms/sandbox.ts`): erfundene Teilnehmer für den
   kompletten Ablauf ohne echte Daten.
-- **286 Tests**, alle grün (`npm test`).
+- **290 Tests**, alle grün (`npm test`).
 
 - **Oberfläche Phase 1 vollständig**: Ersteinrichtung und Login (Cookie-Session
   mit `jose`, bcrypt-Hash), Dashboard, Gewinnspiel-Detailseite mit Import, Regeln,
@@ -186,6 +186,16 @@
   statt Ausnahme, sonst ginge die Diagnose verloren). `Diagnose` samt
   `ohneSchluessel` zeigt die Rohantwort im Aufklappkasten — **ohne** Zugangsschluessel,
   durch Modultest und E2E abgesichert. Zwei Runden Raterei waeren damit entfallen.
+
+- **Fassung 0.9.1**: An einer echten Antwort abgelesen — bei **fremden** Kommentaren
+  steht der Name ausschliesslich unter `from`, das blosse `username` liefert Meta nur
+  bei den eigenen. Metas Referenz behauptet das Gegenteil. Damit war die Ursache aus
+  0.9.0 falsch dokumentiert („neuen Schluessel erzeugen"); behoben hatte es bereits
+  das mitangeforderte Feld `from{id,username}`. `istEigener` prueft `user` jetzt
+  ausdruecklich als Objekt (es kommt als `{"id":"…"}`, der Wahrheitswert stimmte nur
+  zufaellig), und Eigene werden vor Antworten gezaehlt — die eigenen Kommentare sind
+  ueberwiegend Antworten, sonst stuende „0 eigene". Testbeispiele stammen aus dem
+  echten Abruf (157 Eintraege, 4 Seiten).
 
 ## Als Nächstes
 

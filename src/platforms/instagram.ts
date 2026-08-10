@@ -506,14 +506,6 @@ export async function holeKommentare(optionen: {
         break;
       }
 
-      // Antworten auf Kommentare sind keine Teilnahme: Teilnahme ist ein
-      // Kommentar **unter dem Beitrag**. Sonst kaeme jemand in den Topf, weil
-      // er unter einem fremden Kommentar „dabei" geschrieben hat.
-      if (String(k.parent_id ?? "").trim()) {
-        antworten += 1;
-        continue;
-      }
-
       const username = benutzername(k);
       const text = String(k.text ?? "").trim();
 
@@ -524,11 +516,20 @@ export async function holeKommentare(optionen: {
         continue;
       }
 
-      // Der Veranstalter kann sein eigenes Gewinnspiel nicht gewinnen.
-      // `user` setzt Meta nur bei eigenen Kommentaren; der Namensvergleich ist
-      // die Rueckfalllinie, falls das Feld fehlt.
-      if (String(k.user ?? "").trim() || username.toLowerCase() === eigenerName) {
+      // Eigene zuerst, Antworten danach: Die eigenen Kommentare sind
+      // ueberwiegend Antworten auf Teilnehmer. Zaehlte man sie als Antworten,
+      // stuende in der Meldung „0 eigene Kommentare" und man hielte den
+      // Ausschluss fuer kaputt.
+      if (istEigener(k, username, eigenerName)) {
         eigene += 1;
+        continue;
+      }
+
+      // Antworten auf Kommentare sind keine Teilnahme: Teilnahme ist ein
+      // Kommentar **unter dem Beitrag**. Sonst kaeme jemand in den Topf, weil
+      // er unter einem fremden Kommentar „dabei" geschrieben hat.
+      if (String(k.parent_id ?? "").trim()) {
+        antworten += 1;
         continue;
       }
 
@@ -572,8 +573,8 @@ export async function holeKommentare(optionen: {
   }
   if (eigene > 0) {
     warnings.push(
-      `${eigene} eigene Kommentar${eigene === 1 ? "" : "e"} übersprungen — ` +
-        "wer das Gewinnspiel veranstaltet, nimmt daran nicht teil.",
+      `${eigene} ${eigene === 1 ? "eigener Kommentar" : "eigene Kommentare"} ` +
+        "übersprungen — wer das Gewinnspiel veranstaltet, nimmt daran nicht teil.",
     );
   }
   if (antworten > 0) {
@@ -627,17 +628,45 @@ export function namenFehlen(ohneNamen: number, gesamt: number): string | null {
   return (
     `Bei ${ohneNamen} von ${gesamt} Kommentaren hat Instagram keinen ` +
     "Benutzernamen mitgeschickt. Ohne Namen lässt sich niemand zuordnen, " +
-    "deshalb wurde **nichts** gespeichert — ein halber Lostopf wäre schlimmer " +
-    "als keiner. Der wahrscheinlichste Grund: Dein Zugangsschlüssel trägt die " +
-    "Berechtigung instagram_business_manage_comments nicht. Sie hängt am " +
-    "Schlüssel, nicht am Konto — erzeug in der Meta-Konsole einen neuen, auch " +
-    "wenn die Berechtigung dort längst angehakt ist. Was Instagram genau " +
-    "geantwortet hat, steht unter „Was hat Instagram geantwortet?“."
+    "deshalb wurde nichts gespeichert — ein halber Lostopf wäre schlimmer als " +
+    "keiner. Schau unter „Was hat Instagram geantwortet?“ nach, ob bei den " +
+    "betroffenen Kommentaren das Feld from mit einem Namen darin steht. Fehlt " +
+    "es dort ebenfalls, prüf in der Meta-Konsole die Berechtigung " +
+    "instagram_business_manage_comments und erzeug danach einen neuen " +
+    "Zugangsschlüssel — Berechtigungen hängen am Schlüssel, nicht am Konto."
   );
 }
 
-/// Der Name steht je nach Schnittstellenfassung direkt drin oder unter `from`.
-/// Beides zu lesen kostet drei Zeilen und erspart einen leeren Import.
+/// Stammt der Kommentar vom verbundenen Konto selbst?
+///
+/// Der Veranstalter kann sein eigenes Gewinnspiel nicht gewinnen.
+///
+/// Meta setzt `user` **nur** bei Kommentaren des App-Nutzers — und zwar als
+/// Objekt (`"user":{"id":"…"}`), nicht als Zeichenkette. Auf dessen
+/// Wahrheitswert zu setzen, funktionierte nur durch Zufall; hier steht
+/// ausdruecklich, was gemeint ist. Der Namensvergleich ist die Rueckfalllinie.
+function istEigener(
+  k: Record<string, unknown>,
+  username: string,
+  eigenerName: string,
+): boolean {
+  const user = k.user;
+  if (user && typeof user === "object" && Object.keys(user).length > 0) return true;
+  return Boolean(eigenerName) && username.toLowerCase() === eigenerName;
+}
+
+/// Der Benutzername — und zwar aus `from`, nicht aus `username`.
+///
+/// An einer echten Antwort abgelesen, nicht aus der Dokumentation:
+///
+///   fremd:  {"id":"…","text":"…","from":{"id":"…","username":"nerdanwalt_ts"}}
+///   eigen:  {"id":"…","username":"twitch_tobisreise","from":{…},"user":{…}}
+///
+/// Bei **fremden** Kommentaren steht der Name ausschliesslich unter `from`;
+/// das blosse `username` liefert Meta nur bei den eigenen. Wer `from` nicht
+/// ausdruecklich anfordert, bekommt genau das Ergebnis, das uns zwei Runden
+/// gekostet hat: die eigenen Kommentare im Lostopf und die Teilnehmer
+/// uebersprungen. Metas Referenz behauptet das Gegenteil — die Antwort zaehlt.
 function benutzername(k: Record<string, unknown>): string {
   const direkt = String(k.username ?? "").trim();
   if (direkt) return direkt.replace(/^@/, "");

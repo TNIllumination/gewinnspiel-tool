@@ -167,10 +167,22 @@ Der zweite Stolperstein derselben Art. Instagram liefert die Kommentare, lässt 
 den Namen weg — **wieder ohne Fehlermeldung**. Auffällig ist dann, dass ausgerechnet
 *deine eigenen* Kommentare durchkommen: Die kennt Instagram ohnehin.
 
-Grund ist die Berechtigung `instagram_business_manage_comments`. Seit August 2024
-braucht der Zugriff auf fremde Benutzernamen sie ausdrücklich. Sie hängt **am
-Schlüssel**, nicht am Konto — in der Konsole angehakt zu sein reicht nicht, wenn dein
-Schlüssel älter ist als das Häkchen. **Erzeug einen neuen und trag ihn ein.**
+**Der Grund lag am Tool, nicht an deiner Einrichtung** — an einem echten Abruf
+abgelesen:
+
+```
+fremder Kommentar:  {"id":"…","text":"…","from":{"username":"nerdanwalt_ts"}}
+eigener Kommentar:  {"id":"…","username":"dein_name","from":{…},"user":{…}}
+```
+
+Bei **fremden** Kommentaren steht der Name ausschließlich unter `from`. Das bloße
+Feld `username` liefert Instagram nur bei den eigenen — deshalb kamen ausgerechnet
+die durch. Seit Fassung 0.9.0 fordert das Tool `from` mit an, und damit stimmt es.
+
+Sollte es dennoch einmal auftreten: Schau im Kasten unten nach, ob `from` bei den
+betroffenen Kommentaren fehlt. Falls ja, prüf in der Meta-Konsole die Berechtigung
+`instagram_business_manage_comments` und erzeug danach einen **neuen** Schlüssel —
+Berechtigungen hängen am Schlüssel, nicht am Konto.
 
 Fehlt bei mehr als einem Viertel der Kommentare der Name, **speichert das Tool
 nichts**. Ein halber Lostopf wäre schlimmer als keiner: Er sieht aus wie ein Erfolg,

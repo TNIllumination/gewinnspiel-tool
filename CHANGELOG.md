@@ -1,5 +1,13 @@
 # Was sich geändert hat
 
+## 0.9.1
+
+- **Richtiggestellt:** In 0.9.0 stand als Ursache für fehlende Benutzernamen „erzeug einen neuen Zugangsschlüssel". Ein echter Abruf zeigt: Es lag am Tool. Bei fremden Kommentaren liefert Instagram den Namen **nur** unter `from`, das bloße `username` gibt es ausschließlich bei den eigenen — deshalb kamen genau die durch. Das Feld `from` wird seit 0.9.0 mit angefordert, damit war es behoben; die Erklärung war falsch und schickte in die Meta-Konsole, wo nichts zu holen war
+- Eigene Kommentare werden **vor** den Antworten gezählt. Sie sind meist Antworten auf Teilnehmer — vorher stand in der Meldung „0 eigene Kommentare" und der Ausschluss sah kaputt aus
+- Das Feld `user` kommt als Objekt, nicht als Zeichenkette. Die Erkennung eigener Kommentare funktionierte nur zufällig und steht jetzt ausdrücklich da
+- „1 eigene Kommentar" heißt jetzt „1 eigener Kommentar"
+- Neue Tests aus einer **echten** Antwort (157 Einträge, 4 Seiten) statt aus der Dokumentation — Metas Referenz behauptet an dieser Stelle das Gegenteil dessen, was die Schnittstelle tut
+
 ## 0.9.0
 
 - **Eigene Kommentare kommen nicht mehr in den Lostopf.** Bisher konnte man sein eigenes Gewinnspiel gewinnen — beim ersten echten Abruf waren die 66 übernommenen Teilnahmen ausgerechnet die eigenen Kommentare. Erkannt werden sie an Metas Feld `user`, ersatzweise am Kontonamen

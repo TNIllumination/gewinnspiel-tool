@@ -65,7 +65,7 @@
 
 <div class="kopf" id="seitenanfang">
   <h1>Gewinnspiel-Tool</h1>
-  <p>Handbuch zur Fassung 0.9.0</p>
+  <p>Handbuch zur Fassung 0.9.1</p>
 </div>
 
 <div class="inhalt-box" id="inhalt">
@@ -214,10 +214,18 @@ blockiert.</p>
 <p>Der zweite Stolperstein derselben Art. Instagram liefert die Kommentare, lässt aber
 den Namen weg — <strong>wieder ohne Fehlermeldung</strong>. Auffällig ist dann, dass ausgerechnet
 <em>deine eigenen</em> Kommentare durchkommen: Die kennt Instagram ohnehin.</p>
-<p>Grund ist die Berechtigung <code>instagram_business_manage_comments</code>. Seit August 2024
-braucht der Zugriff auf fremde Benutzernamen sie ausdrücklich. Sie hängt <strong>am
-Schlüssel</strong>, nicht am Konto — in der Konsole angehakt zu sein reicht nicht, wenn dein
-Schlüssel älter ist als das Häkchen. <strong>Erzeug einen neuen und trag ihn ein.</strong></p>
+<p><strong>Der Grund lag am Tool, nicht an deiner Einrichtung</strong> — an einem echten Abruf
+abgelesen:</p>
+<pre><code>fremder Kommentar:  {&quot;id&quot;:&quot;…&quot;,&quot;text&quot;:&quot;…&quot;,&quot;from&quot;:{&quot;username&quot;:&quot;nerdanwalt_ts&quot;}}
+eigener Kommentar:  {&quot;id&quot;:&quot;…&quot;,&quot;username&quot;:&quot;dein_name&quot;,&quot;from&quot;:{…},&quot;user&quot;:{…}}
+</code></pre>
+<p>Bei <strong>fremden</strong> Kommentaren steht der Name ausschließlich unter <code>from</code>. Das bloße
+Feld <code>username</code> liefert Instagram nur bei den eigenen — deshalb kamen ausgerechnet
+die durch. Seit Fassung 0.9.0 fordert das Tool <code>from</code> mit an, und damit stimmt es.</p>
+<p>Sollte es dennoch einmal auftreten: Schau im Kasten unten nach, ob <code>from</code> bei den
+betroffenen Kommentaren fehlt. Falls ja, prüf in der Meta-Konsole die Berechtigung
+<code>instagram_business_manage_comments</code> und erzeug danach einen <strong>neuen</strong> Schlüssel —
+Berechtigungen hängen am Schlüssel, nicht am Konto.</p>
 <p>Fehlt bei mehr als einem Viertel der Kommentare der Name, <strong>speichert das Tool
 nichts</strong>. Ein halber Lostopf wäre schlimmer als keiner: Er sieht aus wie ein Erfolg,
 enthält aber die falschen Leute. Einzelne fehlende Namen — gelöschte Konten — bleiben

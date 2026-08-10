@@ -624,3 +624,83 @@ describe("ohneSchluessel", () => {
     expect(ohneSchluessel("kaputt?access_token=IGAA_geheim")).not.toMatch(/IGAA_geheim/);
   });
 });
+
+// ── Nach einer echten Antwort gebaut ────────────────────────────────────────
+//
+// Die folgenden Beispiele stammen aus einem tatsächlichen Abruf (157 Einträge,
+// 4 Seiten). Sie widerlegen Metas Referenz: Bei fremden Kommentaren steht der
+// Name **nur** unter `from`, das blosse `username` liefert Meta ausschliesslich
+// bei den eigenen. Genau daran ist der erste Durchlauf gescheitert.
+describe("echte Antwortform von Instagram", () => {
+  const echtFremd = {
+    id: "18146890582540671",
+    text: "@grabenschlampen FTW! Ihr seid die MVPs der Festivals🤘🧡",
+    timestamp: "2026-08-10T09:35:52+0000",
+    like_count: 0,
+    from: { id: "1633740988390729", username: "nerdanwalt_ts" },
+  };
+
+  const echtEigenAlsAntwort = {
+    id: "18116990449903425",
+    text: "@diggiborale ❤️",
+    timestamp: "2026-08-09T08:38:39+0000",
+    like_count: 0,
+    username: "twitch_tobisreise",
+    parent_id: "17882970159613327",
+    from: { id: "17841455108026630", username: "twitch_tobisreise" },
+    user: { id: "37518531757761878" },
+  };
+
+  const echtFremdeAntwort = {
+    id: "18105906080111012",
+    text: "@twitch_tobisreise meiner war nach 4 Jahren ziemlich ausgeblichen",
+    timestamp: "2026-08-09T09:00:45+0000",
+    like_count: 0,
+    parent_id: "18113904385941865",
+    from: { id: "5473753959517375", username: "keksekillen" },
+  };
+
+  it("liest den Namen fremder Kommentare aus from", async () => {
+    antworten(eineSeite([echtFremd]));
+    const { comments } = await holeKommentare({ token: "T", mediaId: "42" });
+    expect(comments.map((c) => c.username)).toEqual(["nerdanwalt_ts"]);
+  });
+
+  // `user` kommt als Objekt, nicht als Zeichenkette. Auf dessen Wahrheitswert
+  // zu setzen ging nur zufällig gut.
+  it("erkennt den eigenen Kommentar am Objekt user", async () => {
+    antworten(eineSeite([echtFremd, echtEigenAlsAntwort]));
+    const { comments, warnings } = await holeKommentare({ token: "T", mediaId: "42" });
+
+    expect(comments.map((c) => c.username)).toEqual(["nerdanwalt_ts"]);
+    // Eigene Kommentare sind meist Antworten. Stünde hier „0 eigene", hielte
+    // man den Ausschluss für kaputt — deshalb zählen sie als eigene.
+    expect(warnings.join(" ")).toMatch(/1 eigener Kommentar übersprungen/);
+  });
+
+  it("zählt fremde Antworten als Antworten, nicht als eigene", async () => {
+    antworten(eineSeite([echtFremd, echtFremdeAntwort]));
+    const { comments, warnings } = await holeKommentare({ token: "T", mediaId: "42" });
+
+    expect(comments.map((c) => c.username)).toEqual(["nerdanwalt_ts"]);
+    expect(warnings.join(" ")).toMatch(/1 Antwort auf Kommentare übersprungen/);
+    expect(warnings.join(" ")).not.toMatch(/eigene/);
+  });
+
+  // Der Fall, der 0.9.0 ausgelöst hat: ohne `from` im Feldkatalog bleiben von
+  // 157 Kommentaren nur die eigenen übrig.
+  it("bricht ab, wenn from fehlt und nur die eigenen Namen ankommen", async () => {
+    const ohneFrom = [
+      { id: "1", text: "dabei", timestamp: "2026-08-01T10:00:00+0000" },
+      { id: "2", text: "dabei", timestamp: "2026-08-01T10:00:00+0000" },
+      { id: "3", text: "dabei", timestamp: "2026-08-01T10:00:00+0000" },
+      { ...echtEigenAlsAntwort, parent_id: undefined },
+    ];
+    antworten(eineSeite(ohneFrom));
+
+    const { comments, abbruch } = await holeKommentare({ token: "T", mediaId: "42" });
+    expect(comments).toEqual([]);
+    expect(abbruch).toMatch(/3 von 4/);
+    expect(abbruch).toMatch(/Feld from/);
+  });
+});
