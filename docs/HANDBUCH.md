@@ -135,9 +135,23 @@ und ein Fehlgriff soll auffallen, solange er noch folgenlos ist.
 
 | Format | Wie es aussieht |
 |---|---|
-| Name mit Kommentar darunter | `anna_berg` ⏎ `Ich bin dabei @ben` — der Normalfall beim Kopieren |
+| **TikTok-Kopie** | Der Name steht **doppelt**, darunter Text, Datum, Like-Zahl, „View 2 replies" |
+| **Instagram-Kopie** | `annas Profilbild` ⏎ `anna` ⏎ `2 Tage` ⏎ Text |
+| Name mit Kommentar darunter | `anna_berg` ⏎ `Ich bin dabei @ben` |
 | Name, Doppelpunkt, Text | `@anna: Ich bin dabei @ben` |
 | Tabelle mit Kopfzeile | `Benutzer;Kommentar;Datum` und darunter die Zeilen |
+
+**Du musst nichts nachbearbeiten.** Markieren, einfügen, prüfen, übernehmen — das
+Tool erkennt selbst, woher der Text stammt, und sortiert Datumsangaben, Like-Zahlen
+und „View 2 replies" aus. In der Vorschau steht, welches Format erkannt wurde.
+
+Aus dem Kopiertext übernimmt das Tool auch den **echten Zeitpunkt** des Kommentars.
+Bei Instagram ist er ungefähr, weil dort nur „vor 2 Tagen" steht. Das zählt für die
+Regel *Einsendeschluss*.
+
+> **Bei TikTok fehlt die @-Kennung.** Kopiert wird nur der Anzeigename („Alex M."),
+> nicht das Handle. Der Profillink bei der Gewinnerprüfung führt deshalb ins Leere —
+> such den Gewinner dort von Hand. Bei Instagram stimmt der Name.
 
 Zeilen, die sich nicht zuordnen lassen, werden **gemeldet** statt stillschweigend
 verworfen. Mehrzeilige Kommentare bleiben zusammen.

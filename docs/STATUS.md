@@ -110,6 +110,14 @@
   (`bedingungen` / `pruefsumme` / `nachweis`), die Ziehungskarte meldet den Zustand,
   verweist auf `#veroeffentlichen` und fragt vor dem Ziehen zurueck.
 
+- **Fassung 0.6.0**: `parseTikTok` und `parseInstagram` in
+  `src/platforms/manual-import.ts`. Anker sind der doppelte Name (TikTok) und
+  „<name>s Profilbild" + Name (Instagram); die Zeilen dazwischen werden **nach ihrer
+  Art erkannt**, nicht nach Position — an echten Kopien scheiterte das Zaehlen an
+  Kommentaren ohne Text und mehrzeiligen Kommentaren. Echte Zeitstempel aus Datum
+  bzw. Altersangabe. Gegen zwei echte Kopien geprueft: 36 von 37 und 64 von 65
+  Bloecken, null Fehlgriffe.
+
 ## Als Nächstes
 
 1. PDF-Ziehungsprotokoll als Rechtsnachweis.

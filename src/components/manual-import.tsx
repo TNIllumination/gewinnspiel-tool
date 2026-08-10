@@ -148,7 +148,10 @@ export function ManualImport({
       {result ? (
         result.count === 0 ? (
           <Notice title="Es wurde keine einzige Teilnahme erkannt" tone="warn">
-            Erkannt werden drei Formate: eine Tabelle mit Kopfzeile
+            Erkannt werden fünf Formate — darunter die Kopie direkt aus TikTok
+            (dort steht der Name doppelt) und aus Instagram (mit den
+            Profilbild-Zeilen). Du musst also nichts nachbearbeiten: markieren,
+            einfügen, prüfen. Sonst: eine Tabelle mit Kopfzeile
             (<code>Benutzer;Kommentar;Datum</code>), „Name: Text&ldquo; je Zeile, oder der
             Name in einer Zeile mit dem Kommentar darunter. Prüf am besten, ob beim
             Kopieren die Namen mitgekommen sind.
@@ -159,6 +162,23 @@ export function ManualImport({
               {result.count} Teilnahmen erkannt
               <span className="font-normal text-slate-600"> · Format: {result.format}</span>
             </p>
+
+            {/* Was TikTok beim Kopieren hergibt, ist der Anzeigename — nicht
+                die @-Kennung. Das muss vor der Ziehung klar sein, nicht erst
+                bei der Gewinnerprüfung. */}
+            {result.format.startsWith("TikTok") ? (
+              <p className="mt-2 text-xs text-slate-600">
+                TikTok gibt beim Kopieren nur den <strong>Anzeigenamen</strong> her,
+                nicht die @-Kennung. Der Profillink bei der Gewinnerprüfung führt
+                deshalb ins Leere — such den Gewinner dort von Hand.
+              </p>
+            ) : null}
+            {result.format.startsWith("Instagram") ? (
+              <p className="mt-2 text-xs text-slate-600">
+                Die Zeitangaben sind ungefähr: Instagram nennt beim Kopieren nur
+                „vor 2 Tagen“, kein genaues Datum.
+              </p>
+            ) : null}
 
             <table className="mt-3 w-full text-left text-sm">
               <thead>

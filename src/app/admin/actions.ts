@@ -324,6 +324,8 @@ export interface ImportPreviewResult {
 const FORMAT_LABELS: Record<string, string> = {
   csv: "Tabelle mit Kopfzeile",
   inline: "„Name: Text“ je Zeile",
+  tiktok: "TikTok-Kopie (Name steht doppelt)",
+  instagram: "Instagram-Kopie (mit Profilbild-Zeilen)",
   blocks: "Name mit Kommentar darunter",
   leer: "leer",
 };

@@ -6,7 +6,9 @@ import type { CommentInput } from "@/rules/engine";
 // Der Parser erkennt deshalb selbststaendig:
 //   1. CSV/TSV mit Kopfzeile   (username;text;datum)
 //   2. "@name: Text"           (eine Zeile je Teilnahme)
-//   3. Bloecke                 (Name in einer Zeile, Text darunter)
+//   3. TikTok-Kopie            (Name steht doppelt)
+//   4. Instagram-Kopie         ("<name>s Profilbild", dann der Name)
+//   5. Bloecke                 (Name in einer Zeile, Text darunter)
 //
 // Fall 3 ist der Alltag bei TikTok: Was man aus der Weboberflaeche kopiert,
 // enthaelt zwischen Name und Text noch Datumsangaben, "Antworten" und
@@ -20,7 +22,7 @@ export interface ImportResult {
   comments: CommentInput[];
   warnings: string[];
   /// Erkanntes Format, wird dem Nutzer zur Kontrolle angezeigt.
-  format: "csv" | "inline" | "blocks" | "leer";
+  format: "csv" | "inline" | "tiktok" | "instagram" | "blocks" | "leer";
 }
 
 const USERNAME_HEADERS = ["username", "user", "benutzer", "name", "autor", "author", "handle"];
@@ -45,7 +47,180 @@ export function parseManualImport(
   if (lines.some((l) => /^\s*@?[\w.]{1,30}\s*[::]/.test(l))) {
     return parseInline(lines, fallbackDate);
   }
+
+  // Die beiden Kopierformate zuerst: Sie haben einen eindeutigen Anker, und
+  // parseBlocks wuerde sie falsch lesen — den doppelten Namen als Text, die
+  // Profilbild-Zeile als Teilnehmer.
+  const tiktok = tiktokAnker(lines);
+  if (tiktok.length >= 2) return parseTikTok(lines, tiktok, fallbackDate);
+
+  const insta = instagramAnker(lines);
+  if (insta.length >= 2) return parseInstagram(lines, insta, fallbackDate);
+
   return parseBlocks(lines, fallbackDate);
+}
+
+// ── Kopiert aus der Weboberflaeche ───────────────────────────────────────────
+//
+// Beide Formate werden **erkannt, nicht gezaehlt**. Feste Abstaende ("das
+// Datum steht in Zeile 4") brechen an echten Daten: Ein Kommentar ohne Text
+// verschiebt alles um eine Zeile, ein mehrzeiliger Kommentar ebenso. Das
+// Ergebnis waeren Teilnehmer mit fremden Texten — schlimmer als gar kein
+// Import, weil es niemandem auffaellt.
+
+const TIKTOK_DATUM = /^([A-Z][a-z]{2})\s+(\d{1,2})(?:,\s*(\d{4}))?$/;
+const MONATE = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const LIKE_ZAHL = /^\d+([.,]\d+)?\s*[km]?$/i;
+const ANTWORTEN = /^view( all)? \d+ repl(y|ies)$/i;
+const INSTA_PROFILBILD = /^(.*)s Profilbild$/;
+// Bearbeitete Kommentare haengen einen Zusatz an: „1 Wo. · Bearbeitet".
+const INSTA_ALTER =
+  /^(\d+)\s*(Min|Sek|Std|Tag|Tage|Wo|W|Monat|Monate|Jahr|Jahre)\.?(\s*[·|]\s*(Bearbeitet|Edited))?$/i;
+
+/// TikTok wiederholt den Namen: zwei gleiche Zeilen hintereinander eroeffnen
+/// eine Teilnahme. Ein sehr verlaesslicher Anker — Kommentartexte wiederholen
+/// sich praktisch nie wortgleich direkt hintereinander.
+function tiktokAnker(lines: string[]): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < lines.length - 1; i++) {
+    const a = lines[i].trim();
+    if (!a || a !== lines[i + 1].trim() || a.length > 60) continue;
+    if (isNoise(a)) continue;
+    // Drei gleiche Zeilen hintereinander sind kein zweiter Anker.
+    if (out.length > 0 && i - out[out.length - 1] < 2) continue;
+    out.push(i);
+  }
+  return out;
+}
+
+/// Instagram stellt dem Namen die Bildbeschreibung voran: „annas Profilbild"
+/// gefolgt von „anna". Beides zusammen ist der Anker — die Zeile allein
+/// koennte auch im Kommentartext stehen.
+function instagramAnker(lines: string[]): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < lines.length - 1; i++) {
+    const treffer = lines[i].trim().match(INSTA_PROFILBILD);
+    if (treffer && treffer[1] && treffer[1] === lines[i + 1].trim()) out.push(i);
+  }
+  return out;
+}
+
+/// Die Zeilen eines Blocks, ohne die beiden Kopfzeilen.
+function bloecke(lines: string[], anker: number[], kopf: number) {
+  return anker.map((start, k) => ({
+    start,
+    zeilen: lines.slice(start + kopf, k + 1 < anker.length ? anker[k + 1] : lines.length),
+  }));
+}
+
+function parseTikTok(
+  lines: string[],
+  anker: number[],
+  fallbackDate: Date,
+): ImportResult {
+  const comments: CommentInput[] = [];
+  const warnings: string[] = [];
+
+  for (const { start, zeilen } of bloecke(lines, anker, 2)) {
+    const username = lines[start].trim();
+    const teile: string[] = [];
+    let datum: Date | null = null;
+    let likes = 0;
+
+    for (const roh of zeilen) {
+      const zeile = roh.trim();
+      if (!zeile || ANTWORTEN.test(zeile)) continue;
+
+      const d = zeile.match(TIKTOK_DATUM);
+      if (d && MONATE.includes(d[1])) {
+        datum = new Date(
+          Number(d[3] ?? new Date().getFullYear()),
+          MONATE.indexOf(d[1]),
+          Number(d[2]),
+          12,
+        );
+        continue;
+      }
+      if (LIKE_ZAHL.test(zeile)) {
+        likes = Math.round(Number(zeile.replace(",", ".").replace(/[km]$/i, "")));
+        continue;
+      }
+      teile.push(zeile);
+    }
+
+    const text = teile.join(" ").trim();
+    if (!text) {
+      warnings.push(`„${truncate(username)}“ übersprungen — kein Kommentartext dabei.`);
+      continue;
+    }
+    comments.push({
+      username,
+      text,
+      externalId: null,
+      commentedAt: datum ?? new Date(fallbackDate.getTime() + comments.length * 1000),
+      likeCount: Number.isFinite(likes) ? likes : 0,
+    });
+  }
+
+  return { comments, warnings, format: "tiktok" };
+}
+
+function parseInstagram(
+  lines: string[],
+  anker: number[],
+  fallbackDate: Date,
+): ImportResult {
+  const comments: CommentInput[] = [];
+  const warnings: string[] = [];
+
+  for (const { start, zeilen } of bloecke(lines, anker, 2)) {
+    const username = lines[start].trim().match(INSTA_PROFILBILD)![1];
+    const teile: string[] = [];
+    let alter: Date | null = null;
+
+    for (const roh of zeilen) {
+      const zeile = roh.trim();
+      if (!zeile) continue;
+
+      const a = zeile.match(INSTA_ALTER);
+      if (a && !alter) {
+        alter = new Date(fallbackDate.getTime() - Number(a[1]) * spanne(a[2]));
+        continue;
+      }
+      teile.push(zeile);
+    }
+
+    // Mehrzeilige Kommentare bleiben zusammen — sie stehen als mehrere
+    // Zeilen da, sind aber ein Kommentar.
+    const text = teile.join(" ").trim();
+    if (!text) {
+      warnings.push(`„${truncate(username)}“ übersprungen — kein Kommentartext dabei.`);
+      continue;
+    }
+    comments.push({
+      username,
+      text,
+      externalId: null,
+      commentedAt: alter ?? new Date(fallbackDate.getTime() - comments.length * 1000),
+      likeCount: 0,
+    });
+  }
+
+  return { comments, warnings, format: "instagram" };
+}
+
+/// Laenge einer Instagram-Zeiteinheit in Millisekunden. Naeherung — genauer
+/// gibt Instagram es beim Kopieren nicht her.
+function spanne(einheit: string): number {
+  const e = einheit.toLowerCase();
+  const MIN = 60_000, STD = 60 * MIN, TAG = 24 * STD;
+  if (e.startsWith("sek")) return 1000;
+  if (e.startsWith("min")) return MIN;
+  if (e.startsWith("std")) return STD;
+  if (e.startsWith("tag")) return TAG;
+  if (e === "w" || e.startsWith("wo")) return 7 * TAG;
+  if (e.startsWith("monat")) return 30 * TAG;
+  return 365 * TAG;
 }
 
 /// Beiwerk aus der Weboberflaeche: Zeitangaben, Like-Zahlen, Schaltflaechen.

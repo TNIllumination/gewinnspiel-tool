@@ -1,5 +1,12 @@
 # Was sich geändert hat
 
+## 0.6.0
+
+- **TikTok und Instagram lassen sich jetzt direkt einfügen** — ohne Nacharbeit. Das Tool erkennt beide Kopierformate selbst und sortiert Datum, Like-Zahlen, „View 2 replies" und die Profilbild-Zeilen aus
+- Der **echte Zeitpunkt** des Kommentars wird übernommen. Bisher zählte der Moment des Einfügens — womit der Einsendeschluss für eingefügte Kommentare wirkungslos war
+- Mehrzeilige Kommentare bleiben ein Eintrag; Blöcke ohne Text werden gemeldet statt verschluckt
+- Die Vorschau sagt, welches Format erkannt wurde — und bei TikTok, dass dort nur der Anzeigename mitkommt
+
 ## 0.5.1
 
 - **Der fehlende Schritt hat jetzt einen Namen.** Nach dem Festschreiben heißt der Knopf *Bedingungen und Prüfsumme veröffentlichen* — vorher stand nur „Teilnahmebedingungen veröffentlichen" da, obwohl die Prüfsumme mitging
