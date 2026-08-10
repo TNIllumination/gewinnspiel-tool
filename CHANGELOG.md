@@ -1,5 +1,14 @@
 # Was sich geändert hat
 
+## 0.8.2
+
+- **Wenn Instagram nichts liefert, steht jetzt der wahre Grund da.** Vorher hieß es „Ist es der richtige Beitrag?" — und schickte damit zum Suchen an eine Stelle, an der nichts falsch war
+- Das Tool fragt Instagram nach seiner **eigenen Kommentarzahl**. Zählt Instagram 137 und liefert 0, ist das ein Berechtigungsproblem und keine Frage des Beitrags. Nur wenn Instagram selbst 0 zählt, wird nach dem Beitrag gefragt
+- Die Meldung nennt die drei Ursachen nach Wahrscheinlichkeit: fehlende Kommentar-Berechtigung am Schlüssel, unbestätigte Tester-Einladung in der Instagram-App, Entwicklungsmodus. Mit dem Hinweis, dass **App-Review und der Schalter „Entwicklung / Live" zwei verschiedene Dinge sind**
+- Warum das nötig war: Meta antwortet in diesem Fall mit einer **leeren Liste statt einer Fehlermeldung** — die Fehlerübersetzung hatte also nichts zu übersetzen
+- Neuer Hinweis, wenn Instagram deutlich mehr Kommentare zählt als eingelesen wurden: Antworten auf Kommentare zählt Instagram mit, für die Teilnahme zählt nur der Kommentar selbst
+- Die Einrichtungsanleitung nennt den Tester-Schritt jetzt samt der Bestätigung in der Instagram-App — der am häufigsten übersehene Schritt überhaupt
+
 ## 0.8.1
 
 - **Beitragsadresse einfügen statt suchen.** Neues Feld: Link aus der Instagram-App kopieren, *Beitrag suchen* drücken, fertig. Gesucht wird über deine eigene Beitragsliste — verglichen wird nur das Kürzel, damit `/p/` gegenüber `/reel/`, fehlendes `www` und angehängtes `?igsh=…` nichts ausmachen

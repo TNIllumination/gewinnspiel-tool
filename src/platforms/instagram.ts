@@ -298,6 +298,98 @@ export async function sucheBeitragPerLink(
 
 // ── Kommentare ──────────────────────────────────────────────────────────────
 
+/// Wie viele Kommentare zaehlt Instagram selbst unter diesem Beitrag?
+///
+/// Der Unterschied zwischen „Instagram zaehlt 137 und liefert 0" und
+/// „Instagram zaehlt selbst 0" ist der zwischen einem Berechtigungsproblem
+/// und dem falschen Beitrag. Ohne diese Zahl lassen sich beide Faelle nicht
+/// auseinanderhalten — und genau daran ist der erste echte Versuch
+/// gescheitert: Die Meldung fragte nach dem richtigen Beitrag, obwohl der
+/// Beitrag stimmte.
+///
+/// `null`, wenn Instagram die Zahl nicht mitgibt. Dann wird nichts behauptet.
+export async function zaehleKommentare(
+  token: string,
+  mediaId: string,
+): Promise<number | null> {
+  const { data } = await hole(`/${mediaId}`, {
+    fields: "comments_count",
+    access_token: token,
+  });
+  return zahlOderNull(data.comments_count);
+}
+
+/// Was sagt man, wenn kein einziger Kommentar ankam?
+///
+/// Das haengt vollstaendig an Instagrams eigener Zahl. Zaehlt Instagram
+/// welche und liefert keinen, darf die App die Kommentare des Kontos noch
+/// nicht sehen — Meta antwortet dann mit einer **leeren Liste statt einer
+/// Fehlermeldung**, weshalb die Fehleruebersetzung nicht greift. Zaehlt
+/// Instagram selbst null, ist die Frage nach dem Beitrag berechtigt.
+///
+/// Beim ersten echten Versuch stand hier nur die zweite Meldung. Sie schickte
+/// zum Suchen an eine Stelle, an der nichts zu finden war.
+export function nichtsGeliefert(gezaehlt: number | null): string {
+  // Nach Wahrscheinlichkeit sortiert, nicht nach Reihenfolge in der Konsole.
+  // Wer eine Liste abarbeitet, faengt oben an — dort muss stehen, was am
+  // haeufigsten stimmt.
+  const schritte =
+    "Zu prüfen, in dieser Reihenfolge: " +
+    "1. Trägt dein Schlüssel die Berechtigung für Kommentare? Beim Erzeugen " +
+    "müssen instagram_business_basic UND instagram_business_manage_comments " +
+    "angehakt sein. Sie hängen am Schlüssel, nicht am Konto — nachträglich " +
+    "angehakt wirkt erst mit einem neu erzeugten Schlüssel. " +
+    "2. Bist du als Instagram-Tester eingetragen (Meta-Konsole → App-Rollen) " +
+    "und hast die Einladung in der Instagram-App bestätigt? " +
+    "Einstellungen → Apps und Websites → Tester-Einladungen. Dieser zweite " +
+    "Schritt wird fast immer übersehen. " +
+    "3. Steht die App auf „Entwicklung“, versuch „Live“. Achtung: Das ist ein " +
+    "anderer Schalter als die App-Review — die brauchst du für dein eigenes " +
+    "Konto nicht, das sagt Meta selbst.";
+
+  if (gezaehlt !== null && gezaehlt > 0) {
+    return (
+      `Instagram zählt ${gezaehlt} Kommentar${gezaehlt === 1 ? "" : "e"} unter ` +
+      "diesem Beitrag, liefert aber keinen einzigen. Am Beitrag liegt es also " +
+      "nicht — die App darf die Kommentare deines Kontos noch nicht sehen. " +
+      schritte
+    );
+  }
+
+  if (gezaehlt === 0) {
+    return (
+      "Unter diesem Beitrag hat Instagram keine Kommentare — auch nach seiner " +
+      "eigenen Zählung nicht. Ist es der richtige Beitrag?"
+    );
+  }
+
+  return (
+    "Instagram hat keine Kommentare geliefert und auch keine Zahl dazu. Falls " +
+    "unter dem Beitrag welche stehen, darf die App sie noch nicht sehen. " +
+    schritte
+  );
+}
+
+/// Instagram zaehlt mehr, als eingelesen wurde — ein Hinweis, kein Fehler.
+///
+/// Instagram zaehlt Antworten auf Kommentare mit, das Tool liest nur die
+/// oberste Ebene. Ohne Erklaerung sieht der Unterschied nach einem
+/// verschluckten Import aus.
+///
+/// Nur bei deutlichem Abstand: Eine Warnung, die bei jedem Abruf erscheint,
+/// liest man beim zweiten Mal nicht mehr — und dann auch nicht die, die zaehlt.
+export function hinweisZuAntworten(
+  gezaehlt: number | null,
+  geliefert: number,
+): string | null {
+  if (gezaehlt === null || gezaehlt <= geliefert * 1.2 + 5) return null;
+  return (
+    `Instagram zählt ${gezaehlt} Kommentare, eingelesen wurden ${geliefert}. ` +
+    "Das ist normal: Antworten auf Kommentare zählt Instagram mit, für die " +
+    "Teilnahme zählt nur der Kommentar selbst."
+  );
+}
+
 export interface AbrufErgebnis {
   comments: CommentInput[];
   /// Was uebersprungen wurde und warum — dieselbe Ehrlichkeit wie beim

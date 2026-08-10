@@ -112,7 +112,18 @@ export function InstagramPanel({
             <strong>API-Einrichtung mit Instagram-Login</strong>
           </li>
           <li>
-            Dein Instagram-Konto verknüpfen und dich selbst als Rolle eintragen
+            Dein Instagram-Konto verknüpfen und dich unter{" "}
+            <strong>App-Rollen</strong> als <strong>Instagram-Tester</strong>{" "}
+            eintragen
+          </li>
+          {/* Der mit Abstand häufigste Stolperstein — und einer, der sich nicht
+              als Fehler zeigt: Ohne bestätigte Einladung liefert Instagram
+              einfach leere Kommentarlisten. */}
+          <li>
+            <strong>Die Einladung in der Instagram-App bestätigen:</strong>{" "}
+            Einstellungen → Apps und Websites → Tester-Einladungen. Ohne diesen
+            Schritt kommen später <strong>leere Kommentarlisten</strong>, ohne dass
+            Instagram einen Fehler meldet
           </li>
           <li>
             Berechtigungen setzen:{" "}

@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   InstagramError,
+  hinweisZuAntworten,
   holeBeitraege,
   holeKommentare,
   kuerzelAusLink,
+  nichtsGeliefert,
   pruefeZugang,
   sucheBeitragPerLink,
   verlaengereToken,
+  zaehleKommentare,
 } from "@/platforms/instagram";
 
 // Antwortbeispiele statt Netz. Geprüft wird, was das Tool aus einer Antwort
@@ -374,5 +377,83 @@ describe("sucheBeitragPerLink", () => {
     await expect(
       sucheBeitragPerLink("T", "https://www.instagram.com/tnillumination/"),
     ).rejects.toThrow(/Adresse eines Instagram-Beitrags/);
+  });
+});
+
+describe("zaehleKommentare", () => {
+  it("liest Instagrams eigene Zahl", async () => {
+    antworten({ body: { id: "42", comments_count: 137 } });
+    await expect(zaehleKommentare("T", "42")).resolves.toBe(137);
+  });
+
+  // Der Unterschied zwischen „Instagram sagt null" und „Instagram sagt gar
+  // nichts" trägt die ganze Meldung — 0 statt null wäre hier eine Lüge.
+  it("gibt null zurück, wenn keine Zahl mitkommt", async () => {
+    antworten({ body: { id: "42" } });
+    await expect(zaehleKommentare("T", "42")).resolves.toBeNull();
+  });
+
+  it("unterscheidet die echte Null davon", async () => {
+    antworten({ body: { id: "42", comments_count: 0 } });
+    await expect(zaehleKommentare("T", "42")).resolves.toBe(0);
+  });
+});
+
+describe("nichtsGeliefert", () => {
+  // Der Fall aus dem ersten echten Versuch: Instagram zeigte die Zahl an,
+  // lieferte aber nichts — und die alte Meldung schickte zum Suchen an den
+  // Beitrag, an dem nichts falsch war.
+  it("nennt Zahl und wahren Grund, wenn Instagram zählt aber nichts liefert", () => {
+    const text = nichtsGeliefert(137);
+    expect(text).toMatch(/137 Kommentare/);
+    expect(text).toMatch(/Am Beitrag liegt es also nicht/);
+    expect(text).toMatch(/instagram_business_manage_comments/);
+    expect(text).toMatch(/Tester-Einladungen/);
+    expect(text).not.toMatch(/Ist es der richtige Beitrag/);
+
+    // Die Verwechslung, die Meta selbst nahelegt: App-Review und der Schalter
+    // „Entwicklung / Live" sind zwei verschiedene Dinge.
+    expect(text).toMatch(/anderer Schalter als die App-Review/);
+  });
+
+  it("beugt den Singular", () => {
+    expect(nichtsGeliefert(1)).toMatch(/1 Kommentar unter/);
+  });
+
+  it("fragt nach dem Beitrag nur, wenn Instagram selbst null zählt", () => {
+    const text = nichtsGeliefert(0);
+    expect(text).toMatch(/Ist es der richtige Beitrag/);
+    expect(text).toMatch(/eigenen Zählung/);
+    expect(text).not.toMatch(/Instagram-Tester/);
+    expect(text).not.toMatch(/App-Review/);
+  });
+
+  it("behauptet ohne Zahl nichts, nennt aber einen Weg", () => {
+    const text = nichtsGeliefert(null);
+    expect(text).toMatch(/keine Zahl dazu/);
+    expect(text).toMatch(/instagram_business_manage_comments/);
+  });
+});
+
+describe("hinweisZuAntworten", () => {
+  it("erklärt einen deutlichen Unterschied", () => {
+    const text = hinweisZuAntworten(137, 64);
+    expect(text).toMatch(/137 Kommentare, eingelesen wurden 64/);
+    expect(text).toMatch(/Antworten auf Kommentare zählt Instagram mit/);
+  });
+
+  // Kleine Abweichungen sind Alltag. Eine Warnung, die bei jedem Abruf
+  // erscheint, liest beim zweiten Mal niemand mehr — auch die nicht, die zählt.
+  it("schweigt bei kleinem Abstand", () => {
+    expect(hinweisZuAntworten(66, 64)).toBeNull();
+    expect(hinweisZuAntworten(64, 64)).toBeNull();
+  });
+
+  it("schweigt ohne Zahl von Instagram", () => {
+    expect(hinweisZuAntworten(null, 64)).toBeNull();
+  });
+
+  it("schweigt, wenn mehr ankam als Instagram zählt", () => {
+    expect(hinweisZuAntworten(60, 64)).toBeNull();
   });
 });

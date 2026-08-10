@@ -127,7 +127,39 @@ von Hand eingefügt, entsteht dadurch kein zweiter Eintrag.
 wenn *fremde* Leute deine App benutzen sollen. Wer in seiner eigenen App als Rolle
 eingetragen ist, hat sofort Zugriff auf sein eigenes Konto. Gibst du das Tool an
 jemanden weiter, legt diese Person sich ebenfalls eine eigene App an — auch dann
-keine Prüfung. Deshalb hat das Tool **keine eingebaute App-Kennung**.
+keine Prüfung. Deshalb hat das Tool **keine eingebaute App-Kennung**. Meta schreibt
+das in der Konsole selbst: Der Review-Schritt lässt sich überspringen, „wenn du als
+Direktentwickler nur an deinen eigenen Instagram Businesses arbeitest".
+
+> **App-Review und „Entwicklung / Live" sind zwei verschiedene Schalter.** Den
+> Review kannst du überspringen — der Modus bleibt davon unberührt. Wer beides
+> verwechselt, sucht den Fehler an der falschen Stelle.
+
+### Wenn Instagram keine Kommentare liefert
+
+Das ist der Stolperstein, an dem diese Anbindung am ehesten hängenbleibt, und er
+sieht nicht nach einem Fehler aus: **Instagram antwortet mit einer leeren Liste,
+nicht mit einer Fehlermeldung.** Der Beitrag ist ausgewählt, die Kommentarzahl steht
+sogar daneben — und trotzdem kommt nichts an.
+
+Das Tool erkennt diesen Fall inzwischen: Zählt Instagram Kommentare, liefert aber
+keinen, sagt es genau das, statt nach dem richtigen Beitrag zu fragen. Zu prüfen ist
+dann, in dieser Reihenfolge:
+
+1. **Trägt dein Schlüssel die Berechtigung für Kommentare?** Beim Erzeugen müssen
+   `instagram_business_basic` **und** `instagram_business_manage_comments` angehakt
+   sein. Berechtigungen hängen am Schlüssel, nicht am Konto — nachträglich angehakt
+   wirken sie erst mit einem **neu erzeugten** Schlüssel. Das ist die häufigste
+   Ursache
+2. **Bist du als Instagram-Tester eingetragen und hast bestätigt?**
+   Meta-Konsole → App-Rollen. Und dann in der Instagram-App: Einstellungen → Apps
+   und Websites → Tester-Einladungen → annehmen
+3. **Steht die App auf „Entwicklung", versuch „Live".** Für „Live" verlangt Meta
+   eine Datenschutzerklärungs-URL — die hast du bereits, das Tool hat sie erzeugt
+   und hochgeladen (`…/datenschutz.html`)
+
+Der Kopierimport funktioniert währenddessen unverändert weiter — du bist also nie
+blockiert.
 
 **Zwei Wege bei Meta — nimm den richtigen.** In der Meta-Dokumentation gibt es
 „Instagram-API mit Facebook-Login" (verlangt eine verknüpfte Facebook-Seite) und

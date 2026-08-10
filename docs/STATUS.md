@@ -26,7 +26,7 @@
   Zeilen werden gemeldet, nicht verschluckt.
 - **Testmodus** (`src/platforms/sandbox.ts`): erfundene Teilnehmer für den
   kompletten Ablauf ohne echte Daten.
-- **262 Tests**, alle grün (`npm test`).
+- **273 Tests**, alle grün (`npm test`).
 
 - **Oberfläche Phase 1 vollständig**: Ersteinrichtung und Login (Cookie-Session
   mit `jose`, bcrypt-Hash), Dashboard, Gewinnspiel-Detailseite mit Import, Regeln,
@@ -163,6 +163,17 @@
   aelterer war **gar nicht** erreichbar. Das war eine Luecke, kein Limit von
   Instagram; beim Abrufen der Kommentare wurde von Anfang an sauber geblaettert.
   Ein Beitrag je Gewinnspiel bleibt bewusst so (`@@unique([giveawayId, platform])`).
+
+- **Fassung 0.8.2**: `zaehleKommentare`, `nichtsGeliefert` und
+  `hinweisZuAntworten` in `src/platforms/instagram.ts`. Beim ersten echten Versuch
+  lieferte Instagram **null Kommentare ohne Fehler** — die Fehleruebersetzung hatte
+  nichts zu uebersetzen, und die Meldung fragte nach dem richtigen Beitrag, obwohl
+  der Beitrag stimmte. Entscheidend ist Instagrams eigene Zahl: zaehlt es 137 und
+  liefert 0, ist es die fehlende Freigabe; zaehlt es selbst 0, ist die Frage nach
+  dem Beitrag berechtigt. Die Schritte in der Meldung sind nach Wahrscheinlichkeit
+  sortiert, und sie trennt **App-Review vom Schalter Entwicklung/Live** — Meta legt
+  diese Verwechslung selbst nahe. Beide Textbausteine liegen als reine Funktionen
+  im Modul statt in `actions.ts`, damit sie ohne Datenbank pruefbar sind.
 
 ## Als Nächstes
 

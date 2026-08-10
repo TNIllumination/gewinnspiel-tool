@@ -45,11 +45,14 @@ import {
 import { decryptOptional, encrypt } from "@/lib/crypto";
 import { parseManualImport } from "@/platforms/manual-import";
 import {
+  hinweisZuAntworten,
   holeBeitraege,
   holeKommentare,
   pruefeZugang,
   sucheBeitragPerLink,
+  nichtsGeliefert,
   verlaengereToken,
+  zaehleKommentare,
 } from "@/platforms/instagram";
 import { generateSandboxComments } from "@/platforms/sandbox";
 import type { MediaItem, PlatformId } from "@/platforms/base";
@@ -1742,12 +1745,18 @@ export async function importInstagram(giveawayId: string) {
       token,
       mediaId: quelle.externalId,
     });
-    if (comments.length === 0) {
-      fail(
-        "Unter diesem Beitrag hat Instagram keine Kommentare geliefert. Ist es " +
-          "der richtige Beitrag?",
-      );
-    }
+
+    // Instagrams eigene Zahl entscheidet, was hier los ist. Sie schlaegt nicht
+    // fehl, wenn sie fehlschlaegt: Kommen Kommentare an, ist der Abruf auch
+    // ohne sie geglueckt.
+    const gezaehlt = await zaehleKommentare(token, quelle.externalId).catch(
+      () => null,
+    );
+
+    if (comments.length === 0) fail(nichtsGeliefert(gezaehlt));
+
+    const hinweis = hinweisZuAntworten(gezaehlt, comments.length);
+    if (hinweis) warnings.push(hinweis);
 
     const result = await storeComments(giveawayId, "INSTAGRAM", comments);
 
