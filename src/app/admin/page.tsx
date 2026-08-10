@@ -7,7 +7,9 @@ import { PLATFORMS, type PlatformId } from "@/platforms/base";
 import {
   createGiveaway,
   einstiegsschritte,
+  faelligeLoeschungen,
   impressumUebersprungen,
+  loescheTeilnehmerdaten,
   logout,
   shutdownServer,
 } from "./actions";
@@ -66,6 +68,7 @@ export default async function AdminPage() {
   if (!(await getSessionUserId())) redirect("/admin/login");
 
   const schritte = await einstiegsschritte();
+  const faellig = await faelligeLoeschungen();
 
   const giveaways = await db.giveaway.findMany({
     orderBy: { createdAt: "desc" },
@@ -114,6 +117,44 @@ export default async function AdminPage() {
       <div className="mb-8">
         <Einstieg schritte={schritte} impressumUeberspringen={impressumUebersprungen} />
       </div>
+
+      {/* Die Datenschutzerklärung sagt eine Löschung nach Ablauf der Frist zu.
+          Ein Hintergrunddienst geht nicht — das Tool läuft nur, wenn du es
+          startest. Also wird hier erinnert, sichtbar genug zum Handeln. */}
+      {faellig.length > 0 ? (
+        <div className="mb-8">
+          <Card className="border-amber-300 bg-amber-50">
+            <CardTitle hint="Deine Datenschutzerklärung sagt das zu.">
+              Aufbewahrungsfrist abgelaufen
+            </CardTitle>
+            <p className="mb-4 text-sm text-amber-900">
+              Bei {faellig.length === 1 ? "einem Gewinnspiel" : `${faellig.length} Gewinnspielen`} ist
+              die Frist überschritten. Gelöscht werden die Teilnahmen aller
+              <strong> nicht gezogenen </strong> Personen. Gewinner und Nachrücker
+              bleiben samt Prüfsumme und Zufallszahl — sonst ließe sich der
+              veröffentlichte Nachweis nicht mehr erzeugen. Sie stehen ohnehin auf
+              der veröffentlichten Seite.
+            </p>
+            <ul className="space-y-3">
+              {faellig.map((f) => (
+                <li key={f.id} className="rounded-lg border border-amber-300 bg-white p-4">
+                  <p className="font-medium text-slate-900">{f.title}</p>
+                  <p className="text-sm text-slate-600">
+                    {f.entries} löschbare Teilnahmen · Frist seit {f.ueberfaellig} Tag
+                    {f.ueberfaellig === 1 ? "" : "en"} abgelaufen
+                  </p>
+                  <ActionForm
+                    action={loescheTeilnehmerdaten.bind(null, f.id)}
+                    submitLabel="Teilnehmerdaten jetzt löschen"
+                    variant="danger"
+                    confirm={`${f.entries} Teilnahmen von „${f.title}" löschen? Gewinner, Nachrücker, Prüfsumme und Zufallszahl bleiben erhalten.`}
+                  />
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
+      ) : null}
 
       <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">

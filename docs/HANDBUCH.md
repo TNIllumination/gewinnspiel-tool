@@ -301,6 +301,48 @@ direkt nach einer Ziehung.
 Die Datei enthält personenbezogene Daten und gehört nicht in ein öffentliches
 Repository — das Projekt schließt sie automatisch aus.
 
+### Löschfristen — was du zugesagt hast, halten
+
+In deiner Datenschutzerklärung steht, dass Teilnehmerdaten nach dem Gewinnspiel
+gelöscht werden, spätestens nach der eingestellten Frist (Feld **Aufbewahrung** am
+Gewinnspiel, voreingestellt 90 Tage). Eine schriftliche Zusage, die niemand einlöst,
+ist schlimmer als keine.
+
+Das Tool läuft nur, wenn du es startest — einen Dienst, der nachts löscht, kann es
+also nicht geben. Stattdessen **prüft es bei jedem Blick aufs Dashboard**: Ist die
+Frist bei einem abgeschlossenen Gewinnspiel abgelaufen, steht dort eine auffällige
+Karte mit dem Knopf **Teilnehmerdaten jetzt löschen**.
+
+Gelöscht wird bewusst **nicht automatisch**. Läuft noch ein Fall — ein Gewinner meldet
+sich nicht, jemand beschwert sich — wäre stilles Löschen genau falsch. Die
+Entscheidung bleibt bei dir, sichtbar genug, dass du sie nicht übersiehst.
+
+**Was gelöscht wird:** alle Teilnahmen, die nicht gezogen wurden — Benutzername,
+Kommentartext, Zeitpunkt.
+**Was bleibt:** die Ziehung selbst mit Prüfsumme und Zufallszahl sowie die gezogenen
+Gewinner und Nachrücker. Löschte man die mit, ließe sich der veröffentlichte Nachweis
+nicht mehr nachrechnen — und genau den schuldest du den Teilnehmern.
+
+### Wenn jemand Auskunft oder Löschung verlangt
+
+Teilnehmer dürfen wissen, was du über sie gespeichert hast (Art. 15 DSGVO), und die
+Löschung verlangen (Art. 17 DSGVO). Deine Datenschutzerklärung sagt beides zu.
+
+Unter **Einstellungen → Anfrage einer teilnehmenden Person** gibst du den
+Benutzernamen ein:
+
+- **Auskunft** listet alle Teilnahmen dieser Person mit Gewinnspiel, Plattform,
+  Kommentartext und Datum. Das kannst du so weitergeben.
+- **Löschen** entfernt sie aus allen Gewinnspielen. Es folgt eine Rückfrage, denn
+  rückgängig geht das nicht.
+
+**Wichtig, wenn die Teilnehmerliste schon veröffentlicht ist:** Veröffentliche die
+Seite danach neu, sonst steht der Name weiter online. Die Prüfsumme lässt sich dann
+nicht mehr nachrechnen — sie wurde über die vollständige Liste gebildet. Schreib das
+auf die Seite oder unter den Beitrag, statt es unerwähnt zu lassen. Das ist kein
+Fehler des Verfahrens: Ein Löschverlangen sticht die Nachrechenbarkeit, und ehrlich
+vermerkt ist es nachvollziehbar.
+
 ### Die Datei `.env`
 
 Beim ersten Start erzeugt das Tool zwei zufällige Schlüssel und legt sie dort ab.
@@ -478,6 +520,28 @@ Reihenfolge, schwarz auf weiß, ist der eigentliche Beweis.
 4. *Jetzt ziehen*
 5. Gewinner prüfen und bestätigen
 6. Oben: *Nachweis veröffentlichen*
+
+### Was ist online? — die Checkliste
+
+Über der Veröffentlichungs-Karte steht **Was ist online?**. Sie beantwortet die
+Frage, die man sich sonst selbst nicht beantworten kann: *Habe ich schon geklickt?*
+
+Denn GitHub Pages baut die Seite nach dem Hochladen erst neu — das dauert **ein bis
+zwei Minuten**. In dieser Lücke sieht die Live-Seite noch alt aus. Ohne Hinweis klickt
+man ein zweites Mal, oder man wartet auf eine Änderung, die man nie angestoßen hat.
+
+In der Checkliste steht jede der drei Stufen. Erledigte werden durchgestrichen und
+ausgegraut, mit Zeitpunkt daneben. Darunter:
+
+- **Zuletzt hochgeladen: vor 12 Sekunden.** Als Spanne, nicht als Uhrzeit — „21:04"
+  muss man erst mit der Uhr vergleichen, „vor 12 Sekunden" nicht.
+- Liegt das Hochladen weniger als zwei Minuten zurück, steht dort ausdrücklich:
+  *GitHub Pages baut die Seite gerade neu. Nicht nochmal drücken.*
+- Steht dort **„erzeugt, aber noch nicht hochgeladen"**, liegen die Dateien nur im
+  Ordner `veroeffentlichung`. Dann fehlt der Zugangsschlüssel, oder das Hochladen ist
+  fehlgeschlagen — online ist dann nichts.
+- **Als Nächstes** nennt die nächste offene Stufe. Steht dort nichts, ist gerade
+  nichts zu tun.
 
 ### Impressum
 

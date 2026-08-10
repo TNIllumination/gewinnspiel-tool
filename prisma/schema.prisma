@@ -162,6 +162,15 @@ model Giveaway {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Wann welche Stufe veroeffentlicht wurde. Ohne diese Zeitpunkte weiss
+  /// niemand, ob schon geklickt wurde — und GitHub Pages braucht ein bis
+  /// zwei Minuten, in denen sich nichts sichtbar tut.
+  termsPublishedAt DateTime?
+  proofPublishedAt DateTime?
+  /// Nur gesetzt, wenn das Hochladen wirklich geklappt hat. "Datei erzeugt"
+  /// ist nicht "online".
+  lastUploadAt     DateTime?
+
   rules   Rule[]
   entries Entry[]
   prizes  Prize[]

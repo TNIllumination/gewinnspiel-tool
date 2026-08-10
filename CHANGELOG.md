@@ -1,5 +1,14 @@
 # Was sich geändert hat
 
+## 0.7.0
+
+- **Neue Karte „Was ist online?"** über der Veröffentlichung. Erledigte Stufen sind durchgestrichen, daneben steht „vor 12 Sekunden". Damit sieht man, wo man steht, statt zu raten
+- **Warnung während GitHub Pages baut**: In den ein bis zwei Minuten nach dem Hochladen sieht die Live-Seite noch alt aus — jetzt steht dort ausdrücklich „Nicht nochmal drücken", statt dass man ein zweites Mal klickt oder vergeblich wartet
+- Erzeugt und hochgeladen werden **auseinandergehalten**. Fehlt der Zugangsschlüssel, steht „erzeugt, aber noch nicht hochgeladen" — vorher sah beides gleich aus
+- **Löschfristen werden eingelöst.** Die Datenschutzerklärung sagt zu, dass Teilnehmerdaten nach der Frist gelöscht werden; ausgewertet wurde das Feld bisher nirgends. Das Dashboard meldet jetzt fällige Löschungen mit Knopf
+- Dabei bleiben **Ziehung, Prüfsumme, Zufallszahl und die gezogenen Gewinner erhalten** — sonst wäre der veröffentlichte Nachweis wertlos
+- **Auskunft und Löschung für einzelne Teilnehmer** unter Einstellungen. Art. 15 und 17 DSGVO stehen in der erzeugten Datenschutzerklärung; einen Knopf dafür gab es bis jetzt nicht
+
 ## 0.6.0
 
 - **TikTok und Instagram lassen sich jetzt direkt einfügen** — ohne Nacharbeit. Das Tool erkennt beide Kopierformate selbst und sortiert Datum, Like-Zahlen, „View 2 replies" und die Profilbild-Zeilen aus

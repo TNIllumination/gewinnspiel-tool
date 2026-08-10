@@ -41,7 +41,7 @@ try {
   // ist voreingestellt.
   await page.check('input[name="platform_SANDBOX"]');
   await page.fill('input[name="substituteCount"]', "5");
-  await page.getByRole("button", { name: "Anlegen" }).click();
+  await page.getByRole("button", { name: "Anlegen", exact: true }).click();
   await page.waitForURL(/\/admin\/[a-z0-9]+$/);
   // Bei wiederholten Läufen hängt an der Adresse eine Nummer — sonst prüft
   // der Test ein altes Gewinnspiel und meldet Fehler, die keine sind.

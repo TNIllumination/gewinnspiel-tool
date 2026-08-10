@@ -126,7 +126,7 @@ try {
   await page.check('input[name="platform_INSTAGRAM"]');
   await page.fill('input[name="postUrl_TIKTOK"]', "https://tiktok.com/@ich/video/1");
   await page.fill('input[name="substituteCount"]', "2");
-  await page.getByRole("button", { name: "Anlegen" }).click();
+  await page.getByRole("button", { name: "Anlegen", exact: true }).click();
   await page.waitForURL(/\/admin\/[a-z0-9]+$/);
   const slug = (await page
     .getByRole("link", { name: "Öffentliche Seite" })
@@ -287,6 +287,24 @@ try {
     no("Zeitpunkt", "Veröffentlichung wird nicht festgehalten");
   } else {
     ok("Zeitpunkt der Veröffentlichung festgehalten");
+  }
+
+  // ── Checkliste: was ist online? ───────────────────────────────────────────
+  // Ohne Zugangsschlüssel wird die Datei nur erzeugt, nicht hochgeladen. Genau
+  // dieser Unterschied muss dastehen — sonst wartet man auf eine Live-Seite,
+  // die nie kommt.
+  const checkliste = page.locator("section", { hasText: "Was ist online?" }).last();
+  const abgehakt = await checkliste.locator(".line-through").allInnerTexts();
+  const checkText = (await checkliste.innerText()).toLowerCase();
+
+  if (!abgehakt.some((t) => /teilnahmebedingungen/i.test(t))) {
+    no("Checkliste", "erledigte Stufe wird nicht durchgestrichen");
+  } else if (abgehakt.some((t) => /nachweis/i.test(t))) {
+    no("Checkliste", "offene Stufe ist fälschlich abgehakt");
+  } else if (!checkText.includes("noch nicht hochgeladen")) {
+    no("Checkliste", "erzeugt und hochgeladen werden nicht unterschieden");
+  } else {
+    ok("Checkliste hakt Erledigtes ab und trennt erzeugt von hochgeladen");
   }
 
   // ── Ziehen ────────────────────────────────────────────────────────────────

@@ -56,7 +56,7 @@ try {
   // Seit 0.3.0 sind Plattformen Kästchen, kein Auswahlfeld.
   await page.uncheck('input[name="platform_SANDBOX"]');
   await page.check('input[name="platform_TIKTOK"]');
-  await page.getByRole("button", { name: "Anlegen" }).click();
+  await page.getByRole("button", { name: "Anlegen", exact: true }).click();
   await page.waitForURL(/\/admin\/[a-z0-9]+$/);
   ok("TikTok-Gewinnspiel angelegt");
 

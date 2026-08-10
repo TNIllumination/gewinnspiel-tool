@@ -26,6 +26,7 @@ import {
 import { ActionForm } from "@/components/action-form";
 import { ManualImport } from "@/components/manual-import";
 import { TextePanel } from "@/components/texte-panel";
+import { VeroeffentlichtCheckliste } from "@/components/veroeffentlicht-checkliste";
 import {
   Badge,
   Card,
@@ -492,6 +493,35 @@ export default async function GiveawayPage({
           </ActionForm>
         ) : null}
       </Card>
+
+      {/* ── Was ist online? ──────────────────────────────────────────── */}
+      <VeroeffentlichtCheckliste
+        stufen={[
+          {
+            titel: "Teilnahmebedingungen veröffentlicht",
+            am: giveaway.termsPublishedAt?.toISOString() ?? null,
+            inhalt: "damit Teilnehmer die Bedingungen nachlesen können",
+          },
+          {
+            titel: "Prüfsumme veröffentlicht",
+            am: currentDraw?.commitPublishedAt?.toISOString() ?? null,
+            inhalt: "muss vor der Ziehung online sein",
+            spaeter: !currentDraw,
+          },
+          {
+            titel: "Nachweis mit Gewinnern veröffentlicht",
+            am: giveaway.proofPublishedAt?.toISOString() ?? null,
+            inhalt: "Teilnehmerliste, Zufallszahl und Gewinner",
+            spaeter: !currentDraw?.seedRevealedAt,
+          },
+        ]}
+        zuletztHochgeladen={giveaway.lastUploadAt?.toISOString() ?? null}
+        seiteUrl={
+          settings?.publishBaseUrl
+            ? `${settings.publishBaseUrl.replace(/\/+$/, "")}/${giveaway.slug}.html`
+            : null
+        }
+      />
 
       {/* ── Texte und Veröffentlichung ───────────────────────────────── */}
       <Card id="veroeffentlichen">

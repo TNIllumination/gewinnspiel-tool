@@ -3,7 +3,7 @@
 > Diese Datei wird am Ende jedes Arbeitsblocks aktualisiert. Sie ist der
 > Wiedereinstiegspunkt — egal ob am Handy, am PC oder in einer neuen Sitzung.
 
-**Letzte Aktualisierung:** 9. August 2026
+**Letzte Aktualisierung:** 10. August 2026
 **Aktuelle Phase:** 1 — lauffähig ohne jede Plattform-Freigabe
 
 ## Fertig
@@ -26,7 +26,7 @@
   Zeilen werden gemeldet, nicht verschluckt.
 - **Testmodus** (`src/platforms/sandbox.ts`): erfundene Teilnehmer für den
   kompletten Ablauf ohne echte Daten.
-- **59 Tests**, alle grün (`npm test`).
+- **219 Tests**, alle grün (`npm test`).
 
 - **Oberfläche Phase 1 vollständig**: Ersteinrichtung und Login (Cookie-Session
   mit `jose`, bcrypt-Hash), Dashboard, Gewinnspiel-Detailseite mit Import, Regeln,
@@ -118,10 +118,21 @@
   bzw. Altersangabe. Gegen zwei echte Kopien geprueft: 36 von 37 und 64 von 65
   Bloecken, null Fehlgriffe.
 
+- **Fassung 0.7.0**: `src/lib/checkliste.ts` (`stand`, `seit`) und die Karte
+  `veroeffentlicht-checkliste.tsx` — `Giveaway.termsPublishedAt`, `proofPublishedAt`
+  und `lastUploadAt` samt Migration `20260810080000_checkliste`. `lastUploadAt` wird
+  **nur** bei geglücktem Upload gesetzt; „erzeugt" ist nicht „online". Die Uhr kommt
+  über `useSyncExternalStore` (sonst Hydrationsfehler bzw. React-Compiler-Verstoss).
+  `src/lib/aufbewahrung.ts` (`faelligkeit`) loest die Loeschfrist ein, die im
+  Datenmodell stand und nirgends gelesen wurde; `loescheTeilnehmerdaten` nimmt die
+  gezogenen Eintraege **aus** — `DrawResult` haengt per Fremdschluessel am `Entry`
+  und haette Gewinner und Nachruecker mitgerissen. `personen-anfrage.tsx` macht
+  Auskunft und Loeschung nach Art. 15/17 DSGVO endlich bedienbar.
+
 ## Als Nächstes
 
 1. PDF-Ziehungsprotokoll als Rechtsnachweis.
-2. Verarbeitungsverzeichnis und automatische Löschfristen.
+2. Verarbeitungsverzeichnis.
 3. Instagram-Anbindung (Phase 2) und YouTube (Phase 2b).
 
 ## Zurück zu PostgreSQL (falls später Hosting gewünscht)

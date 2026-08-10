@@ -3,8 +3,16 @@ import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import { db } from "@/lib/db";
 import { getSessionUserId } from "@/lib/auth";
-import { publishIndex, removeGitHubToken, saveSettings, testGitHubConnection } from "../actions";
+import {
+  auskunftZuPerson,
+  eraseParticipant,
+  publishIndex,
+  removeGitHubToken,
+  saveSettings,
+  testGitHubConnection,
+} from "../actions";
 import { GitHubPanel } from "@/components/github-panel";
+import { PersonenAnfrage } from "@/components/personen-anfrage";
 import { ActionForm } from "@/components/action-form";
 import {
   Card,
@@ -217,6 +225,8 @@ export default async function EinstellungenPage() {
           </p>
         ) : null}
       </Card>
+
+      <PersonenAnfrage auskunft={auskunftZuPerson} loeschen={eraseParticipant} />
 
       <p className="text-xs text-slate-500">
         Das Tool erzeugt die Texte nach den Vorgaben der Plattformen und den

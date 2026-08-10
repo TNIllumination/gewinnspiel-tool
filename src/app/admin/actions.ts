@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { audit, slugify } from "@/lib/audit";
 import { Bedienfehler, alsErgebnis, type MitFehler } from "@/lib/ergebnis";
+import { faelligkeit } from "@/lib/aufbewahrung";
 import {
   createSession,
   destroySession,
@@ -1233,6 +1234,19 @@ export async function publishPage(giveawayId: string) {
       });
     }
 
+    // Für die Checkliste festhalten, was jetzt online ist. lastUploadAt nur,
+    // wenn es wirklich hochgeladen wurde — sonst stünde da "online", während
+    // die Datei bloß im Ordner liegt.
+    const jetzt = new Date();
+    await db.giveaway.update({
+      where: { id: giveawayId },
+      data: {
+        termsPublishedAt: giveaway.termsPublishedAt ?? jetzt,
+        ...(drawData?.drawnAt ? { proofPublishedAt: jetzt } : {}),
+        ...(upload.hochgeladen ? { lastUploadAt: jetzt } : {}),
+      },
+    });
+
     await audit({
       action: "giveaway.published",
       entity: "Giveaway",
@@ -1447,7 +1461,9 @@ export async function einstiegsschritte(): Promise<Einstiegsschritt[]> {
         "und es kann nichts schiefgehen.",
       erledigt: Boolean(giveaway),
       ziel: "/admin",
-      knopf: "Anlegen",
+      // Nicht bloss „Anlegen": So hiesse der Knopf genau wie der im Formular
+      // daneben — zwei gleich beschriftete Knoepfe auf einer Seite.
+      knopf: "Gewinnspiel anlegen",
     },
     {
       id: "regeln",
@@ -1517,6 +1533,140 @@ export async function impressumUebersprungen() {
     actor: userId,
   });
   revalidatePath("/admin");
+}
+
+// ── Löschfristen ─────────────────────────────────────────────────────────────
+//
+// Die erzeugte Datenschutzerklaerung sagt zu: "Die Teilnehmerdaten werden nach
+// Abschluss des Gewinnspiels geloescht, spaetestens X Tage danach." Bis 0.7.0
+// wurde retentionDays an keiner Stelle ausgewertet — die Zusage war unwahr.
+//
+// Ein Hintergrunddienst scheidet aus: Das Tool laeuft nur, wenn es gestartet
+// wird. Also wird beim Blick aufs Dashboard geprueft und gemeldet.
+
+export interface FaelligeLoeschung {
+  id: string;
+  title: string;
+  entries: number;
+  /// Tage, die die Frist ueberschritten ist.
+  ueberfaellig: number;
+}
+
+export async function faelligeLoeschungen(): Promise<FaelligeLoeschung[]> {
+  await requireUser();
+
+  const abgeschlossen = await db.giveaway.findMany({
+    where: { status: "COMPLETED" },
+    include: {
+      draws: { orderBy: { committedAt: "desc" }, take: 1 },
+      _count: { select: { entries: true } },
+    },
+  });
+
+  const jetzt = Date.now();
+
+  const gezogenJe = new Map<string, number>();
+  for (const g of abgeschlossen) {
+    const n = await db.drawResult.count({ where: { draw: { giveawayId: g.id } } });
+    gezogenJe.set(g.id, n);
+  }
+
+  return abgeschlossen.flatMap((g) => {
+    const faellig = faelligkeit(
+      {
+        entries: g._count.entries,
+        gezogen: gezogenJe.get(g.id) ?? 0,
+        // Ab der Ziehung laeuft die Frist; ohne Ziehung ab dem Abschluss.
+        ab: g.draws[0]?.drawnAt ?? g.updatedAt,
+        retentionDays: g.retentionDays,
+      },
+      jetzt,
+    );
+    if (!faellig) return [];
+    return [
+      {
+        id: g.id,
+        title: g.title,
+        entries: faellig.loeschbar,
+        ueberfaellig: faellig.ueberfaellig,
+      },
+    ];
+  });
+}
+
+/// Loescht die Teilnahmen — und **nur** die.
+///
+/// Ziehung, Pruefsumme, Zufallszahl und die gezogenen Plaetze bleiben stehen.
+/// Wuerde man sie mitloeschen, waere der veroeffentlichte Nachweis wertlos,
+/// und genau den schuldest du den Teilnehmern.
+export async function loescheTeilnehmerdaten(giveawayId: string) {
+  return alsErgebnis(async () => {
+    const userId = await requireUser();
+    const giveaway = await db.giveaway.findUniqueOrThrow({ where: { id: giveawayId } });
+    if (giveaway.status !== "COMPLETED") {
+      fail("Nur abgeschlossene Gewinnspiele können gelöscht werden.");
+    }
+
+    // Nur die Teilnahmen, die NICHT gezogen wurden. DrawResult haengt per
+    // Fremdschluessel am Entry und wuerde mitgeloescht — damit waeren
+    // Gewinner und Nachruecker weg und der veroeffentlichte Nachweis liesse
+    // sich nicht mehr erzeugen. Genau das ist beim Testen passiert.
+    const gezogen = await db.drawResult.findMany({
+      where: { draw: { giveawayId } },
+      select: { entryId: true },
+    });
+    const behalten = gezogen.map((r) => r.entryId);
+
+    const { count } = await db.entry.deleteMany({
+      where: { giveawayId, id: { notIn: behalten } },
+    });
+
+    await audit({
+      action: "entries.erased",
+      entity: "Giveaway",
+      entityId: giveawayId,
+      actor: userId,
+      detail: {
+        count,
+        behalten: behalten.length,
+        grund: "Aufbewahrungsfrist abgelaufen",
+      },
+    });
+
+    revalidatePath("/admin");
+    return { geloescht: count, behalten: behalten.length };
+  });
+}
+
+// ── Anfragen von Teilnehmern (Art. 15 und 17 DSGVO) ─────────────────────────
+
+export async function auskunftZuPerson(username: string) {
+  return alsErgebnis(async () => {
+    await requireUser();
+    const name = username.trim().replace(/^@/, "");
+    if (!name) fail("Bitte einen Benutzernamen eingeben.");
+
+    // SQLite kennt kein "insensitive" — deshalb vorfiltern und in JS genau
+    // vergleichen.
+    const treffer = await db.entry.findMany({
+      where: { username: { contains: name } },
+      include: { giveaway: { select: { title: true, slug: true } } },
+      take: 200,
+    });
+    const genau = treffer.filter(
+      (e) => e.username.toLowerCase() === name.toLowerCase(),
+    );
+
+    return {
+      gefunden: genau.length,
+      eintraege: genau.slice(0, 20).map((e) => ({
+        gewinnspiel: e.giveaway.title,
+        plattform: e.platform as string,
+        text: e.text,
+        am: e.commentedAt.toISOString(),
+      })),
+    };
+  });
 }
 
 export async function completeGiveaway(giveawayId: string) {
