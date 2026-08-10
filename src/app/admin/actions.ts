@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { audit, slugify } from "@/lib/audit";
 import { Bedienfehler, alsErgebnis, type MitFehler } from "@/lib/ergebnis";
-import { faelligkeit } from "@/lib/aufbewahrung";
+import { faelligkeit, tokenFrist } from "@/lib/aufbewahrung";
 import {
   createSession,
   destroySession,
@@ -44,6 +44,12 @@ import {
 } from "@/lib/github";
 import { decryptOptional, encrypt } from "@/lib/crypto";
 import { parseManualImport } from "@/platforms/manual-import";
+import {
+  holeBeitraege,
+  holeKommentare,
+  pruefeZugang,
+  verlaengereToken,
+} from "@/platforms/instagram";
 import { generateSandboxComments } from "@/platforms/sandbox";
 import type { PlatformId } from "@/platforms/base";
 
@@ -1303,6 +1309,22 @@ export async function saveSettings(formData: FormData) {
     const eingegeben = String(formData.get("githubToken") ?? "").trim();
     const githubToken = eingegeben ? encrypt(eingegeben) : undefined;
 
+    // Dieselbe Regel fuer Instagram. Ein neu eingetragener Schluessel bringt
+    // 60 Tage mit — Metas uebliche Laufzeit. Genau nachrechnen laesst sich
+    // das erst beim ersten Verlaengern; bis dahin ist die Schaetzung besser
+    // als gar kein Zeitpunkt, denn ohne einen wird nie gewarnt.
+    const igEingegeben = String(formData.get("instagramToken") ?? "").trim();
+    const instagram = igEingegeben
+      ? {
+          instagramToken: encrypt(igEingegeben),
+          instagramExpires: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+          // Wer ist verbunden, klaert „Verbindung prüfen" — bis dahin lieber
+          // leer als ein Name, der zum neuen Schluessel gar nicht gehoert.
+          instagramHandle: "",
+          instagramUserId: "",
+        }
+      : {};
+
     // Die Veroeffentlichungsadresse ergibt sich aus dem Repository. Zwei
     // Felder fuer dieselbe Sache haben schon fuer Verwirrung gesorgt — also
     // fuellt das Tool das zweite selbst, solange es leer ist.
@@ -1319,8 +1341,13 @@ export async function saveSettings(formData: FormData) {
 
     await db.settings.upsert({
       where: { id: "settings" },
-      create: { id: "settings", ...gemeinsam, githubToken: githubToken ?? "" },
-      update: { ...gemeinsam, ...(githubToken ? { githubToken } : {}) },
+      create: {
+        id: "settings",
+        ...gemeinsam,
+        githubToken: githubToken ?? "",
+        ...instagram,
+      },
+      update: { ...gemeinsam, ...(githubToken ? { githubToken } : {}), ...instagram },
     });
 
     await audit({
@@ -1397,6 +1424,314 @@ export async function removeGitHubToken() {
       actor: userId,
     });
     revalidatePath("/admin/einstellungen");
+  });
+}
+
+// ── Instagram ───────────────────────────────────────────────────────────────
+
+/// Zugang zu Instagram, sofern hinterlegt. Nach demselben Muster wie
+/// `githubZugang` — auch beim selben Stolperstein: Liegt der Hauptschluessel
+/// aus .env nicht mehr vor, laesst sich der gespeicherte Schluessel nicht
+/// entschluesseln, und das muss man erfahren statt raten.
+async function instagramZugang(): Promise<string | null> {
+  const settings = await db.settings.findUnique({ where: { id: "settings" } });
+  if (!settings?.instagramToken) return null;
+
+  try {
+    return decryptOptional(settings.instagramToken);
+  } catch {
+    fail(
+      "Der hinterlegte Instagram-Schlüssel lässt sich nicht mehr lesen. Das " +
+        "passiert, wenn die Datei .env ausgetauscht wurde. Entfern den " +
+        "Schlüssel und trag ihn neu ein.",
+    );
+  }
+}
+
+export interface InstagramStand {
+  verbunden: boolean;
+  handle: string;
+  /// Ablauf als ISO-Zeichenkette, null wenn unbekannt.
+  gueltigBis: string | null;
+  tage: number | null;
+  abgelaufen: boolean;
+  warnen: boolean;
+}
+
+/// Zustand des Zugangs, fertig gerechnet.
+///
+/// Die Uhr wird hier gelesen und nicht beim Darstellen: Ein `Date.now()`
+/// mitten im Rendern ist unrein, und der React-Compiler weist es zu Recht
+/// zurueck — dieselbe Lehre wie bei der Checkliste in 0.7.0.
+export async function instagramStand(): Promise<InstagramStand> {
+  await requireUser();
+  const settings = await db.settings.findUnique({ where: { id: "settings" } });
+
+  const verbunden = Boolean(settings?.instagramToken);
+  const frist = verbunden
+    ? tokenFrist(settings?.instagramExpires ?? null, Date.now())
+    : null;
+
+  return {
+    verbunden,
+    handle: settings?.instagramHandle ?? "",
+    gueltigBis: settings?.instagramExpires?.toISOString() ?? null,
+    tage: frist?.tage ?? null,
+    abgelaufen: frist?.abgelaufen ?? false,
+    warnen: frist?.warnen ?? false,
+  };
+}
+
+/// Wer ist verbunden — und wie lange noch?
+export async function testInstagramConnection() {
+  return alsErgebnis(async () => {
+    await requireUser();
+    const token = await instagramZugang();
+    if (!token) {
+      fail(
+        "Es ist noch kein Instagram-Schlüssel hinterlegt. Trag ihn oben ein und " +
+          "speichere — die Anleitung dazu steht direkt darunter.",
+      );
+    }
+
+    const info = await pruefeZugang(token);
+
+    // Bei der Gelegenheit festhalten, mit wem man verbunden ist. So steht es
+    // spaeter da, ohne dass dafuer jedes Mal ins Netz gegriffen werden muss.
+    await db.settings.update({
+      where: { id: "settings" },
+      data: { instagramHandle: info.username, instagramUserId: info.userId },
+    });
+    revalidatePath("/admin/einstellungen");
+
+    const typ = KONTOTYP[info.kontotyp] ?? info.kontotyp;
+    const settings = await db.settings.findUnique({ where: { id: "settings" } });
+    const stand = tokenFrist(settings?.instagramExpires ?? null, Date.now());
+
+    const teile = [`Verbunden als @${info.username} (${typ}).`];
+    if (!stand) {
+      teile.push(
+        "Wann der Schlüssel abläuft, ist nicht bekannt — nach dem nächsten " +
+          "Verlängern steht es hier.",
+      );
+    } else if (stand.abgelaufen) {
+      teile.push("Achtung: Der Schlüssel ist abgelaufen.");
+    } else {
+      teile.push(`Der Schlüssel gilt noch ${stand.tage} Tage.`);
+    }
+    return { meldung: teile.join(" ") };
+  });
+}
+
+/// Nur fuer Meldungstexte. Die Oberflaeche hat ihr eigenes `formatDateTime`;
+/// das hier zu importieren hiesse, ein JSX-Modul in die Server-Aktionen zu
+/// ziehen — fuer ein Datum in einem Satz.
+function datumDeutsch(d: Date): string {
+  return d.toLocaleDateString("de-DE", {
+    dateStyle: "medium",
+    timeZone: "Europe/Berlin",
+  });
+}
+
+const KONTOTYP: Record<string, string> = {
+  MEDIA_CREATOR: "Creator",
+  BUSINESS: "Business",
+  PERSONAL: "privat — damit geht der Abruf nicht",
+};
+
+/// Verlaengert den Schluessel um 60 Tage.
+export async function verlaengereInstagram() {
+  return alsErgebnis(async () => {
+    const userId = await requireUser();
+    const alt = await instagramZugang();
+    if (!alt) fail("Es ist kein Instagram-Schlüssel hinterlegt.");
+
+    const neu = await verlaengereToken(alt);
+    await db.settings.update({
+      where: { id: "settings" },
+      data: {
+        instagramToken: encrypt(neu.token),
+        instagramExpires: neu.gueltigBis,
+      },
+    });
+    await audit({
+      action: "settings.instagram_refreshed",
+      entity: "Settings",
+      entityId: "settings",
+      actor: userId,
+      detail: { gueltigBis: neu.gueltigBis.toISOString() },
+    });
+    revalidatePath("/admin/einstellungen");
+    revalidatePath("/admin");
+    return {
+      meldung: `Verlängert. Der Schlüssel gilt jetzt bis ${datumDeutsch(neu.gueltigBis)}.`,
+    };
+  });
+}
+
+/// Entfernt den hinterlegten Instagram-Schluessel samt allem, was daran haengt.
+export async function removeInstagramToken() {
+  return alsErgebnis(async () => {
+    const userId = await requireUser();
+    await db.settings.update({
+      where: { id: "settings" },
+      data: {
+        instagramToken: "",
+        instagramHandle: "",
+        instagramUserId: "",
+        instagramExpires: null,
+      },
+    });
+    await audit({
+      action: "settings.instagram_removed",
+      entity: "Settings",
+      entityId: "settings",
+      actor: userId,
+    });
+    revalidatePath("/admin/einstellungen");
+    revalidatePath("/admin");
+  });
+}
+
+// ── Beitrag waehlen und Kommentare abrufen ──────────────────────────────────
+
+export interface BeitragsWahl {
+  externalId: string;
+  /// Was in der Liste steht: Anfang der Bildunterschrift oder ein Ersatz.
+  label: string;
+  url: string;
+  am: string;
+  kommentare: number | null;
+}
+
+/// Die letzten eigenen Beitraege zum Anklicken.
+///
+/// Warum nicht die Beitragsadresse eintippen: Die Schnittstelle arbeitet mit
+/// einer Kennung, und aus instagram.com/p/ABC123/ laesst sich diese Kennung
+/// offiziell nicht gewinnen. Also andersherum — und nebenbei sieht man so
+/// gleich, wie viele Kommentare Instagram selbst zaehlt.
+export async function instagramBeitraege() {
+  return alsErgebnis(async () => {
+    await requireUser();
+    const token = await instagramZugang();
+    if (!token) {
+      fail(
+        "Es ist kein Instagram-Schlüssel hinterlegt. Trag ihn unter Einstellungen " +
+          "ein — dort steht auch, wie du ihn bekommst.",
+      );
+    }
+
+    const beitraege = await holeBeitraege(token);
+    return {
+      beitraege: beitraege.map((b): BeitragsWahl => ({
+        externalId: b.externalId,
+        label: kurz(b.caption) || "(ohne Bildunterschrift)",
+        url: b.url,
+        am: b.publishedAt.toISOString(),
+        kommentare: b.commentCount ?? null,
+      })),
+    };
+  });
+}
+
+function kurz(text: string, max = 80): string {
+  const einzeilig = text.replace(/\s+/g, " ").trim();
+  return einzeilig.length > max ? `${einzeilig.slice(0, max - 1)}…` : einzeilig;
+}
+
+/// Merkt sich, welcher Beitrag zu diesem Gewinnspiel gehoert.
+export async function waehleBeitrag(
+  giveawayId: string,
+  externalId: string,
+  label: string,
+  url: string,
+) {
+  return alsErgebnis(async () => {
+    const userId = await requireUser();
+    if (!externalId.trim()) fail("Es wurde kein Beitrag ausgewählt.");
+
+    await db.giveawaySource.update({
+      where: { giveawayId_platform: { giveawayId, platform: "INSTAGRAM" } },
+      data: {
+        externalId: externalId.trim(),
+        postLabel: label.trim() || null,
+        // Die Adresse ist nicht nur Zierde: Sie steht in den
+        // Teilnahmebedingungen. Wer den Beitrag hier waehlt, soll sie nicht
+        // zusaetzlich von Hand eintragen muessen.
+        ...(url.trim() ? { postUrl: url.trim() } : {}),
+      },
+    });
+
+    await audit({
+      action: "source.post_selected",
+      entity: "Giveaway",
+      entityId: giveawayId,
+      actor: userId,
+      detail: { platform: "INSTAGRAM", externalId },
+    });
+    revalidatePath(`/admin/${giveawayId}`);
+  });
+}
+
+/// Holt die Kommentare unter dem gewaehlten Beitrag.
+///
+/// Etappenweise mehrfach zu druecken ist ausdruecklich erlaubt: `storeComments`
+/// erkennt schon Vorhandenes an der Kommentar-Kennung. Wer zwischendurch von
+/// Hand eingefuegt hat, bekommt trotzdem keine Doppelten — der Abdruck aus
+/// Name und Text greift auch dann.
+export async function importInstagram(giveawayId: string) {
+  return alsErgebnis(async () => {
+    const userId = await requireUser();
+
+    const quelle = await db.giveawaySource.findUnique({
+      where: { giveawayId_platform: { giveawayId, platform: "INSTAGRAM" } },
+    });
+    if (!quelle) fail("Für dieses Gewinnspiel ist Instagram gar nicht eingetragen.");
+    if (!quelle.externalId) {
+      fail(
+        "Es ist noch kein Beitrag ausgewählt. Wähl oben den Beitrag, unter dem " +
+          "die Teilnahmen stehen.",
+      );
+    }
+
+    const token = await instagramZugang();
+    if (!token) {
+      fail(
+        "Es ist kein Instagram-Schlüssel hinterlegt. Trag ihn unter Einstellungen " +
+          "ein — dort steht auch, wie du ihn bekommst.",
+      );
+    }
+
+    const { comments, warnings } = await holeKommentare({
+      token,
+      mediaId: quelle.externalId,
+    });
+    if (comments.length === 0) {
+      fail(
+        "Unter diesem Beitrag hat Instagram keine Kommentare geliefert. Ist es " +
+          "der richtige Beitrag?",
+      );
+    }
+
+    const result = await storeComments(giveawayId, "INSTAGRAM", comments);
+
+    await audit({
+      action: "entries.imported",
+      entity: "Giveaway",
+      entityId: giveawayId,
+      actor: userId,
+      detail: {
+        source: "api",
+        platform: "INSTAGRAM",
+        erkannt: comments.length,
+        ...result,
+      },
+    });
+
+    await runEvaluation(giveawayId);
+
+    revalidatePath(`/admin/${giveawayId}`);
+    return { ...result, warnings };
   });
 }
 

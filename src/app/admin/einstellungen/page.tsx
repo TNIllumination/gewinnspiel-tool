@@ -8,10 +8,15 @@ import {
   eraseParticipant,
   publishIndex,
   removeGitHubToken,
+  removeInstagramToken,
   saveSettings,
   testGitHubConnection,
+  instagramStand,
+  testInstagramConnection,
+  verlaengereInstagram,
 } from "../actions";
 import { GitHubPanel } from "@/components/github-panel";
+import { InstagramPanel } from "@/components/instagram-panel";
 import { PersonenAnfrage } from "@/components/personen-anfrage";
 import { ActionForm } from "@/components/action-form";
 import {
@@ -44,6 +49,7 @@ export default async function EinstellungenPage() {
   const settings = await db.settings.findUnique({ where: { id: "settings" } });
   const indexAt = await indexWrittenAt();
   const angaben = Boolean(settings?.organizer?.trim() && settings?.contact?.trim());
+  const igStand = await instagramStand();
 
   return (
     <main className="mx-auto max-w-2xl space-y-6 px-4 py-10">
@@ -147,6 +153,23 @@ export default async function EinstellungenPage() {
             </Field>
 
             <Field
+              label="Zugangsschlüssel für Instagram"
+              hint={
+                settings?.instagramToken
+                  ? "Hinterlegt ✓ — leer lassen, um ihn zu behalten. Nur ausfüllen, wenn du ihn ersetzen willst."
+                  : "Noch keiner hinterlegt. Ohne ihn fügst du Instagram-Kommentare weiterhin von Hand ein. Die Anleitung steht weiter unten."
+              }
+            >
+              <input
+                className={inputClass}
+                name="instagramToken"
+                type="password"
+                autoComplete="off"
+                placeholder={settings?.instagramToken ? "unverändert" : "IGAA…"}
+              />
+            </Field>
+
+            <Field
               label="Adresse — wo die Teilnehmer lesen"
               hint="Ergibt sich aus dem Repository — lass es leer, dann trägt das Tool die Adresse beim Speichern selbst ein. Aus ihr baut es den Link für den Beitrag."
             >
@@ -166,6 +189,18 @@ export default async function EinstellungenPage() {
         entfernen={removeGitHubToken}
         repo={settings?.githubRepo ?? ""}
         hatSchluessel={Boolean(settings?.githubToken)}
+      />
+
+      <InstagramPanel
+        pruefen={testInstagramConnection}
+        verlaengern={verlaengereInstagram}
+        entfernen={removeInstagramToken}
+        handle={settings?.instagramHandle ?? ""}
+        hatSchluessel={Boolean(settings?.instagramToken)}
+        gueltigBis={
+          settings?.instagramExpires ? formatDateTime(settings.instagramExpires) : null
+        }
+        tageRest={igStand.tage}
       />
 
       {!settings?.impressumUrl?.trim() ? (

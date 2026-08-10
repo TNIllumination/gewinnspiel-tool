@@ -60,3 +60,32 @@ describe("istSteuerfluss", () => {
     expect(istSteuerfluss({ digest: 1234567 })).toBe(false);
   });
 });
+
+// Jede Fehlerklasse, die einen Text für den Betreiber trägt, muss in
+// `ANZEIGBAR` stehen. Fehlt sie, ist im Produktionsbau „error #441" zurück —
+// genau das ist beim Hinzufügen von Instagram passiert, und der E2E-Test hat
+// es gefangen. Hier steht es billiger.
+describe("Fehler fremder Schichten", () => {
+  const benannt = (name: string, text: string) => {
+    const e = new Error(text);
+    e.name = name;
+    return e;
+  };
+
+  for (const name of ["GitHubError", "InstagramError"]) {
+    it(`gibt den Text von ${name} weiter`, async () => {
+      const r = await alsErgebnis(async () => {
+        throw benannt(name, "Der Zugangsschlüssel gilt nicht mehr.");
+      });
+      expect(r.fehler).toBe("Der Zugangsschlüssel gilt nicht mehr.");
+    });
+  }
+
+  it("gibt den Text einer unbekannten Fehlerklasse nicht weiter", async () => {
+    await expect(
+      alsErgebnis(async () => {
+        throw benannt("DatenbankError", "SQLITE_CONSTRAINT: users.email");
+      }),
+    ).rejects.toThrow(/SQLITE_CONSTRAINT/);
+  });
+});

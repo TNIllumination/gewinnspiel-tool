@@ -26,6 +26,37 @@ export interface Faellig {
   ueberfaellig: number;
 }
 
+// ── Ablauf des Instagram-Schluessels ────────────────────────────────────────
+//
+// Derselbe Gedanke wie oben, andere Frist: Der Zugangsschluessel haelt 60
+// Tage. Ein Tool, das nur laeuft, wenn man es startet, kann nicht im
+// Hintergrund verlaengern — also wird beim Blick aufs Dashboard gerechnet
+// und gemeldet, bevor es mitten im Gewinnspiel auffaellt.
+
+/// Ab wann gewarnt wird. Zwei Wochen sind genug Vorlauf, um es in Ruhe zu
+/// erledigen, und selten genug, dass die Meldung nicht zur Tapete wird.
+export const WARNFRIST_TAGE = 14;
+
+export interface TokenStand {
+  /// Verbleibende Tage. Negativ, wenn der Schluessel schon abgelaufen ist.
+  tage: number;
+  abgelaufen: boolean;
+  /// Soll das Dashboard etwas sagen?
+  warnen: boolean;
+}
+
+/// `null`, wenn gar kein Schluessel hinterlegt ist — dann gibt es nichts zu
+/// warnen, sondern hoechstens etwas einzurichten.
+export function tokenFrist(gueltigBis: Date | null, jetzt: number): TokenStand | null {
+  if (!gueltigBis) return null;
+
+  // Aufgerundet: Sind es noch 12 Stunden, ist das „1 Tag" und nicht „0".
+  const tage = Math.ceil((gueltigBis.getTime() - jetzt) / TAG_MS);
+  const abgelaufen = gueltigBis.getTime() <= jetzt;
+
+  return { tage, abgelaufen, warnen: abgelaufen || tage <= WARNFRIST_TAGE };
+}
+
 /// `null`, solange nichts zu tun ist.
 export function faelligkeit(a: Aufbewahrung, jetzt: number): Faellig | null {
   // Gezogene Teilnahmen bleiben stehen, sonst waere der veroeffentlichte

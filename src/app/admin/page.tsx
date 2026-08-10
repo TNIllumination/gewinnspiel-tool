@@ -9,6 +9,7 @@ import {
   einstiegsschritte,
   faelligeLoeschungen,
   impressumUebersprungen,
+  instagramStand,
   loescheTeilnehmerdaten,
   logout,
   shutdownServer,
@@ -40,7 +41,7 @@ const NEW_GIVEAWAY_PLATFORMS = [
   {
     id: "INSTAGRAM",
     label: "Instagram",
-    hint: "Kommentare einfügen — automatisch erst nach der Meta-Freigabe.",
+    hint: "Kommentare einfügen — oder automatisch abrufen, sobald dein Konto verbunden ist.",
   },
   {
     id: "TIKTOK",
@@ -69,6 +70,8 @@ export default async function AdminPage() {
 
   const schritte = await einstiegsschritte();
   const faellig = await faelligeLoeschungen();
+
+  const igFrist = await instagramStand();
 
   const giveaways = await db.giveaway.findMany({
     orderBy: { createdAt: "desc" },
@@ -152,6 +155,47 @@ export default async function AdminPage() {
                 </li>
               ))}
             </ul>
+          </Card>
+        </div>
+      ) : null}
+
+      {/* Der Instagram-Schlüssel hält 60 Tage. Fällt das erst beim Abrufen
+          auf, steht man mitten im Gewinnspiel ohne Teilnehmer da. */}
+      {igFrist.warnen ? (
+        <div className="mb-8">
+          <Card
+            className={
+              igFrist.abgelaufen
+                ? "border-red-300 bg-red-50"
+                : "border-amber-300 bg-amber-50"
+            }
+          >
+            <CardTitle hint="Er hält 60 Tage — verlängern geht mit einem Klick.">
+              {igFrist.abgelaufen
+                ? "Instagram-Schlüssel abgelaufen"
+                : "Instagram-Schlüssel läuft bald ab"}
+            </CardTitle>
+            <p className="mb-4 text-sm text-slate-800">
+              {igFrist.abgelaufen ? (
+                <>
+                  Der Zugang gilt seit {Math.abs(igFrist.tage ?? 0)} Tag
+                  {Math.abs(igFrist.tage ?? 0) === 1 ? "" : "en"} nicht mehr. Kommentare
+                  abrufen geht erst wieder mit einem neuen Schlüssel — verlängern
+                  klappt nach dem Ablauf nicht mehr.
+                </>
+              ) : (
+                <>
+                  Noch {igFrist.tage} Tag{igFrist.tage === 1 ? "" : "e"}. Erledige es
+                  jetzt, nicht kurz vor der nächsten Ziehung.
+                </>
+              )}
+            </p>
+            <Link
+              href="/admin/einstellungen"
+              className="text-sm font-medium underline hover:text-slate-900"
+            >
+              Zu den Einstellungen
+            </Link>
           </Card>
         </div>
       ) : null}

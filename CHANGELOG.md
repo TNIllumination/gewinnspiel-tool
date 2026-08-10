@@ -1,5 +1,17 @@
 # Was sich geändert hat
 
+## 0.8.0
+
+- **Instagram-Kommentare kommen jetzt automatisch.** Konto einmal verbinden, Beitrag aus der Liste wählen, abrufen — vollständig, mit echtem Zeitstempel und ohne Scrollen
+- **Ohne Freigabe durch Meta.** Die Prüfung braucht nur, wer Fremde auf seine App lässt. Fürs eigene Konto entfällt sie; deshalb hat das Tool keine eingebaute App-Kennung, jeder bringt seine eigene mit. Eine Facebook-Seite ist ebenfalls nicht nötig
+- Mehrfach abrufen ist erlaubt, und **Kopiertes und Abgerufenes vermischen sich sauber** — es entstehen keine doppelten Teilnahmen
+- Der Zugangsschlüssel hält 60 Tage. Das Tool **rechnet mit und meldet sich ab zwei Wochen vorher**, statt mitten im Gewinnspiel zu scheitern. Verlängern geht mit einem Klick
+- Fehler von Meta stehen im Klartext da: abgelaufener Schlüssel, Stundenlimit, fehlende Berechtigung, fremder Beitrag — statt „OAuthException, code 190"
+- **Instagram-Kopien auf Englisch** werden gelesen. Bisher hing die Erkennung an der deutschen Zeile „…s Profilbild"; bei englischer App-Sprache griff sie nicht
+- Dabei gefunden und behoben: **„Antworten" und „Gefällt mir" klebten hinten am Kommentartext**, wenn die Kopie sie enthielt. Die deutsche Beispieldatei enthielt sie zufällig nicht — aufgefallen ist es erst am englischen Testfall
+- **Der Import gibt zu, wenn er scheitert.** Sieht ein Text nach einer Kopie aus, lässt sich aber nicht als solche lesen, steht das als Warnung ganz oben — vorher wurde stillschweigend nach dem allgemeinen Format gelesen, was Teilnehmer mit fremden Texten erzeugt
+- Der Einstiegsschritt heißt „Gewinnspiel anlegen": auf dem Dashboard stand er gleichlautend neben dem Knopf des Formulars
+
 ## 0.7.0
 
 - **Neue Karte „Was ist online?"** über der Veröffentlichung. Erledigte Stufen sind durchgestrichen, daneben steht „vor 12 Sekunden". Damit sieht man, wo man steht, statt zu raten

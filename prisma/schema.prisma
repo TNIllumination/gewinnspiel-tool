@@ -96,6 +96,19 @@ model Settings {
   /// eine Antwort. Sonst bliebe die Einstiegsliste fuer private Verlosungen
   /// ewig unvollstaendig.
   impressumGeklaert Boolean @default(false)
+
+  /// Zugang zu Instagram ("Instagram API with Instagram Login"). Der
+  /// Schluessel liegt AES-256-GCM-verschluesselt hier, wie der von GitHub,
+  /// und wird nie an den Browser zurueckgegeben.
+  instagramToken   String    @default("")
+  /// Kontoname und Kennung des verbundenen Kontos. Damit sichtbar ist, mit
+  /// wem man verbunden ist, ohne dafuer erst ins Netz zu muessen.
+  instagramHandle  String    @default("")
+  instagramUserId  String    @default("")
+  /// Wann der Schluessel ablaeuft — Instagram gibt 60 Tage. Ohne diesen
+  /// Zeitpunkt faellt der Ablauf erst mitten im Gewinnspiel auf.
+  instagramExpires DateTime?
+
   updatedAt DateTime @updatedAt
 }
 
@@ -187,6 +200,14 @@ model GiveawaySource {
   giveaway   Giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
   platform   Platform
   postUrl    String?
+  /// Kennung des Beitrags bei der Plattform. Die Schnittstelle arbeitet mit
+  /// ihr, nicht mit der Beitragsadresse — und es gibt keinen offiziellen Weg,
+  /// aus instagram.com/p/ABC123/ diese Kennung zu machen.
+  externalId String?
+  /// Bildunterschrift und Datum des gewaehlten Beitrags, damit in der
+  /// Oberflaeche steht, *welcher* Beitrag gewaehlt ist — eine nackte Kennung
+  /// sagt niemandem etwas.
+  postLabel  String?
 
   @@unique([giveawayId, platform])
 }

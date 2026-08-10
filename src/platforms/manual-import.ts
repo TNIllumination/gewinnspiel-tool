@@ -57,7 +57,51 @@ export function parseManualImport(
   const insta = instagramAnker(lines);
   if (insta.length >= 2) return parseInstagram(lines, insta, fallbackDate);
 
-  return parseBlocks(lines, fallbackDate);
+  // Hier ist kein Anker gegriffen — gelesen wird also nach dem allgemeinen
+  // Format. Sieht der Text aber nach einer Kopie aus, ist das Ergebnis mit
+  // hoher Wahrscheinlichkeit falsch, und zwar unauffaellig falsch: Es
+  // entstehen Teilnehmer mit fremden Texten. Das muss vornedran stehen.
+  const ergebnis = parseBlocks(lines, fallbackDate);
+  const verdacht = wirktWieKopie(lines);
+  if (verdacht) {
+    ergebnis.warnings.unshift(
+      `Das sieht nach einer ${verdacht}-Kopie aus, ließ sich aber nicht als solche ` +
+        "lesen — die Namen unten stimmen dann wahrscheinlich nicht. Prüf die " +
+        "Vorschau genau, bevor du übernimmst.",
+    );
+  }
+  return ergebnis;
+}
+
+/// Verraeterische Merkmale einer Kopie aus der App.
+///
+/// Absichtlich streng: Ein falscher Alarm bei einer ordentlichen CSV-Datei
+/// waere schlimmer als gar keiner, weil man ihn nach dem zweiten Mal
+/// wegklickt. Deshalb zaehlen nur Zeilen, die **fuer sich allein** stehen —
+/// im Fliesstext eines Kommentars kommen sie so nicht vor — und es braucht
+/// mindestens zwei davon.
+export function wirktWieKopie(lines: string[]): "Instagram" | "TikTok" | null {
+  let insta = 0;
+  let tiktok = 0;
+
+  for (const roh of lines) {
+    const zeile = roh.trim();
+    if (!zeile) continue;
+
+    if (INSTA_PROFILBILD.test(zeile)) insta += 2; // das deutlichste Merkmal
+    else if (INSTA_ALTER.test(zeile)) insta += 1;
+    else if (/^(Antworten|Reply|Antwort)$/i.test(zeile)) insta += 1;
+    else if (/^(Gefällt \d+ Mal|\d+ likes?)$/i.test(zeile)) insta += 1;
+
+    if (ANTWORTEN.test(zeile)) tiktok += 1;
+    else if (TIKTOK_DATUM.test(zeile) && MONATE.includes(zeile.split(/\s+/)[0])) {
+      tiktok += 1;
+    }
+  }
+
+  if (insta >= 2 && insta >= tiktok) return "Instagram";
+  if (tiktok >= 2) return "TikTok";
+  return null;
 }
 
 // ── Kopiert aus der Weboberflaeche ───────────────────────────────────────────
@@ -72,10 +116,15 @@ const TIKTOK_DATUM = /^([A-Z][a-z]{2})\s+(\d{1,2})(?:,\s*(\d{4}))?$/;
 const MONATE = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const LIKE_ZAHL = /^\d+([.,]\d+)?\s*[km]?$/i;
 const ANTWORTEN = /^view( all)? \d+ repl(y|ies)$/i;
-const INSTA_PROFILBILD = /^(.*)s Profilbild$/;
+// Die deutsche und die englische Fassung derselben Zeile. Wer die App auf
+// Englisch benutzt, kopiert „annas profile picture" statt „annas Profilbild" —
+// ohne den zweiten Fall greift der Anker nicht und der Text landet beim
+// allgemeinen Format, das ihn falsch liest.
+const INSTA_PROFILBILD = /^(.*?)(?:s Profilbild|'s profile picture)$/i;
 // Bearbeitete Kommentare haengen einen Zusatz an: „1 Wo. · Bearbeitet".
+// Englisch stehen die Einheiten ohne Punkt und einbuchstabig: 3d, 1w, 5h.
 const INSTA_ALTER =
-  /^(\d+)\s*(Min|Sek|Std|Tag|Tage|Wo|W|Monat|Monate|Jahr|Jahre)\.?(\s*[·|]\s*(Bearbeitet|Edited))?$/i;
+  /^(\d+)\s*(Min|Sek|Std|Tag|Tage|Wo|Monat|Monate|Jahr|Jahre|s|m|h|d|w|y)\.?(\s*[·|]\s*(Bearbeitet|Edited))?$/i;
 
 /// TikTok wiederholt den Namen: zwei gleiche Zeilen hintereinander eroeffnen
 /// eine Teilnahme. Ein sehr verlaesslicher Anker — Kommentartexte wiederholen
@@ -187,6 +236,13 @@ function parseInstagram(
         alter = new Date(fallbackDate.getTime() - Number(a[1]) * spanne(a[2]));
         continue;
       }
+
+      // „Antworten", „Gefällt mir", „Übersetzung anzeigen": Bedienelemente,
+      // keine Kommentare. Die deutsche Beispielkopie enthielt sie zufaellig
+      // nicht — deshalb ist es lange nicht aufgefallen, obwohl sie sonst
+      // hinten an jedem Kommentartext geklebt haetten.
+      if (isNoise(zeile)) continue;
+
       teile.push(zeile);
     }
 
@@ -214,10 +270,13 @@ function parseInstagram(
 function spanne(einheit: string): number {
   const e = einheit.toLowerCase();
   const MIN = 60_000, STD = 60 * MIN, TAG = 24 * STD;
-  if (e.startsWith("sek")) return 1000;
-  if (e.startsWith("min")) return MIN;
-  if (e.startsWith("std")) return STD;
-  if (e.startsWith("tag")) return TAG;
+  // Die einbuchstabigen Formen sind die englischen: 30s, 5m, 3h, 2d, 1w, 1y.
+  // „m" ist dort die Minute, nicht der Monat — der heisst „mo" oder steht
+  // ausgeschrieben. Falsch geraten waeren aus fuenf Minuten fuenf Monate.
+  if (e === "s" || e.startsWith("sek")) return 1000;
+  if (e === "m" || e.startsWith("min")) return MIN;
+  if (e === "h" || e.startsWith("std")) return STD;
+  if (e === "d" || e.startsWith("tag")) return TAG;
   if (e === "w" || e.startsWith("wo")) return 7 * TAG;
   if (e.startsWith("monat")) return 30 * TAG;
   return 365 * TAG;

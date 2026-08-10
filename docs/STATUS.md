@@ -3,7 +3,7 @@
 > Diese Datei wird am Ende jedes Arbeitsblocks aktualisiert. Sie ist der
 > Wiedereinstiegspunkt — egal ob am Handy, am PC oder in einer neuen Sitzung.
 
-**Letzte Aktualisierung:** 10. August 2026
+**Letzte Aktualisierung:** 11. August 2026
 **Aktuelle Phase:** 1 — lauffähig ohne jede Plattform-Freigabe
 
 ## Fertig
@@ -26,7 +26,7 @@
   Zeilen werden gemeldet, nicht verschluckt.
 - **Testmodus** (`src/platforms/sandbox.ts`): erfundene Teilnehmer für den
   kompletten Ablauf ohne echte Daten.
-- **219 Tests**, alle grün (`npm test`).
+- **252 Tests**, alle grün (`npm test`).
 
 - **Oberfläche Phase 1 vollständig**: Ersteinrichtung und Login (Cookie-Session
   mit `jose`, bcrypt-Hash), Dashboard, Gewinnspiel-Detailseite mit Import, Regeln,
@@ -129,11 +129,33 @@
   und haette Gewinner und Nachruecker mitgerissen. `personen-anfrage.tsx` macht
   Auskunft und Loeschung nach Art. 15/17 DSGVO endlich bedienbar.
 
+- **Fassung 0.8.0**: `src/platforms/instagram.ts` ruft Kommentare selbst ab —
+  ueber **„Instagram API with Instagram Login"** (`graph.instagram.com`, v25.0),
+  nicht ueber den Weg mit Facebook-Anmeldung. Zwei Gruende: keine verknuepfte
+  Facebook-Seite noetig, und `refresh_access_token` verlaengert **ohne
+  App-Geheimnis**. Kein App Review, solange man sein eigenes Konto abruft und in
+  der eigenen App als Rolle eingetragen ist — deshalb hat das Tool **keine
+  eingebaute App-Kennung**, jeder traegt seine eigene ein.
+  Blaettern ueber den `after`-Cursor statt ueber die fertige `next`-Adresse: die
+  traegt den Schluessel im Klartext. `InstagramError` mit gesetztem `name`, damit
+  `alsErgebnis` greift (sonst wieder „error #441"). `storeComments` wird
+  unveraendert weiterbenutzt — die Dublettenpruefung ueber `externalId` lag schon
+  bereit, und `entryFingerprint` faengt die Mischung aus Kopie und Abruf ab.
+  `tokenFrist` in `src/lib/aufbewahrung.ts` meldet den Ablauf ab 14 Tagen.
+  `GiveawaySource.externalId`/`postLabel` samt Migration `20260810210000_instagram`.
+  Die `PlatformCapabilities` aus `base.ts` steuern **endlich wirklich** die
+  Oberflaeche — bis 0.7.0 wurden sie nirgends gelesen.
+  Im Kopierimport: englische Anker (`'s profile picture`, `2d`/`1w`) und
+  `wirktWieKopie`, das eine nicht gelesene Kopie meldet statt sie als allgemeines
+  Format zu verhunzen. Dabei gefunden: `parseInstagram` filterte `isNoise` nicht —
+  „Antworten" klebte hinten am Kommentartext, in der deutschen Beispieldatei nur
+  zufaellig nicht sichtbar.
+
 ## Als Nächstes
 
 1. PDF-Ziehungsprotokoll als Rechtsnachweis.
 2. Verarbeitungsverzeichnis.
-3. Instagram-Anbindung (Phase 2) und YouTube (Phase 2b).
+3. YouTube (nur ein API-Key aus der Google Cloud Console noetig).
 
 ## Zurück zu PostgreSQL (falls später Hosting gewünscht)
 
@@ -147,7 +169,7 @@ werden könnten: der Duplikat-Abgleich in `storeComments` (SQLite kennt kein
 
 - **Login**: Statt Auth.js ist eine schlanke Cookie-Session mit `jose` vorgesehen —
   bei genau einem Benutzer ist das weniger fehleranfällig als ein volles Auth-Framework.
-- **Instagram** braucht ein Meta App Review (1–4 Wochen). Phase 1 funktioniert
-  unabhängig davon, deshalb blockiert das nichts.
+- **Instagram** laeuft seit 0.8.0 ohne App Review — das braucht nur, wer Fremde
+  auf die eigene Meta-App laesst. Wichtig: Der Zugangsschluessel haelt 60 Tage.
 - **YouTube** braucht nur einen API-Key aus der Google Cloud Console.
 - **TikTok** bleibt beim Import von Hand, solange es keinen Kommentar-Scope gibt.

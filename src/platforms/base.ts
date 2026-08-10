@@ -63,7 +63,9 @@ const INSTAGRAM: PlatformAdapter = {
     canCheckLike: false,
     needsManualImport: false,
     notes:
-      "Kommentare inklusive Benutzername kommen automatisch über die Instagram Graph API. " +
+      "Kommentare inklusive Benutzername kommen automatisch, sobald ein eigenes " +
+      "Profi-Konto verbunden ist — ohne Freigabe durch Meta und ohne Facebook-Seite. " +
+      "Ohne Verbindung bleibt der Weg über Einfügen offen. " +
       "Wer geliked hat und wer folgt, gibt Instagram seit 2018 nicht mehr heraus — " +
       "das wird bei Gewinner und Nachrückern von Hand geprüft.",
   },

@@ -101,14 +101,50 @@ Kommt „0 neu", hast du alles.
 
 Datumsangaben, „Antworten" und Like-Zahlen werden automatisch aussortiert.
 
-### Instagram und YouTube
+### Instagram — automatisch abrufen statt kopieren
 
-Genauso wie bei TikTok, meist aber angenehmer: Instagram lädt über „Weitere
-Kommentare laden" nach und **behält** das Geladene in der Seite. Oft bekommst du
-dort alles auf einmal.
+Verbindest du dein Instagram-Konto einmal, holt das Tool die Kommentare selbst:
+vollständig, mit echtem Zeitstempel und ohne Scrollen. **Eine Freigabe durch Meta
+brauchst du dafür nicht** — dazu unten mehr.
 
-Später sollen Instagram und YouTube die Kommentare automatisch abholen — dafür
-braucht Instagram allerdings eine Freigabe von Meta, die einige Wochen dauert.
+So läuft es:
+
+1. Einmalig unter **Einstellungen → Instagram verbinden** einrichten (Anleitung
+   steht dort aufklappbar, Schritt für Schritt)
+2. Im Gewinnspiel bei **Teilnahmen einlesen** auf *Beitrag auswählen* — das Tool
+   listet deine letzten Beiträge mit Bildunterschrift und Kommentarzahl
+3. *Kommentare abrufen* drücken. Mehrfach drücken ist erlaubt: Was schon drin ist,
+   wird erkannt und nicht doppelt gezählt
+
+Auch **Kopiertes und Abgerufenes vermischen** sich sauber — hast du vorher etwas
+von Hand eingefügt, entsteht dadurch kein zweiter Eintrag.
+
+**Warum keine Prüfung durch Meta nötig ist.** Meta verlangt ein App Review nur,
+wenn *fremde* Leute deine App benutzen sollen. Wer in seiner eigenen App als Rolle
+eingetragen ist, hat sofort Zugriff auf sein eigenes Konto. Gibst du das Tool an
+jemanden weiter, legt diese Person sich ebenfalls eine eigene App an — auch dann
+keine Prüfung. Deshalb hat das Tool **keine eingebaute App-Kennung**.
+
+**Zwei Wege bei Meta — nimm den richtigen.** In der Meta-Dokumentation gibt es
+„Instagram-API mit Facebook-Login" (verlangt eine verknüpfte Facebook-Seite) und
+**„API-Einrichtung mit Instagram-Login"**. Das Tool benutzt den zweiten Weg: keine
+Facebook-Seite nötig, und der Schlüssel lässt sich ohne App-Geheimnis verlängern.
+Ein Schlüssel aus dem ersten Weg wird abgelehnt — die Fehlermeldung sagt es dann
+auch.
+
+**Der Schlüssel hält 60 Tage.** Das Tool rechnet mit und meldet sich ab zwei Wochen
+Restlaufzeit im Dashboard. *Schlüssel verlängern* unter Einstellungen setzt die 60
+Tage zurück, ohne Umweg über Meta. Ist er einmal abgelaufen, hilft nur ein neuer.
+Verlängern klappt erst, wenn der Schlüssel einen Tag alt ist.
+
+**Was auch mit Anbindung Handarbeit bleibt:** Wer geliked hat und wer dir folgt,
+gibt Instagram grundsätzlich nicht heraus. Das wird bei Gewinnern und Nachrückern
+von Hand geprüft — dafür gibt es die Verifikations-Checkliste.
+
+### YouTube
+
+Bleibt vorerst beim Einfügen. Nötig wäre nur ein API-Key aus der Google Cloud
+Console — weder OAuth noch eine Freigabe.
 
 ### Mehrere Plattformen in einem Gewinnspiel
 
@@ -136,7 +172,7 @@ und ein Fehlgriff soll auffallen, solange er noch folgenlos ist.
 | Format | Wie es aussieht |
 |---|---|
 | **TikTok-Kopie** | Der Name steht **doppelt**, darunter Text, Datum, Like-Zahl, „View 2 replies" |
-| **Instagram-Kopie** | `annas Profilbild` ⏎ `anna` ⏎ `2 Tage` ⏎ Text |
+| **Instagram-Kopie** | `annas Profilbild` ⏎ `anna` ⏎ `2 Tage` ⏎ Text — auf Englisch `annas profile picture` ⏎ `anna` ⏎ `2d` |
 | Name mit Kommentar darunter | `anna_berg` ⏎ `Ich bin dabei @ben` |
 | Name, Doppelpunkt, Text | `@anna: Ich bin dabei @ben` |
 | Tabelle mit Kopfzeile | `Benutzer;Kommentar;Datum` und darunter die Zeilen |
@@ -155,6 +191,19 @@ Regel *Einsendeschluss*.
 
 Zeilen, die sich nicht zuordnen lassen, werden **gemeldet** statt stillschweigend
 verworfen. Mehrzeilige Kommentare bleiben zusammen.
+
+**Wenn ein Kopierformat nicht erkannt wird.** Instagram und TikTok ändern ihre
+Oberfläche, und bei anderer Spracheinstellung stehen die Zeilen anders da. Erkennt
+das Tool verräterische Merkmale, kann den Text aber nicht als Kopie lesen, warnt es
+in der Vorschau ausdrücklich:
+
+> Das sieht nach einer Instagram-Kopie aus, ließ sich aber nicht als solche lesen —
+> die Namen unten stimmen dann wahrscheinlich nicht.
+
+Diese Warnung ist ernst zu nehmen: Gelesen wird dann nach dem allgemeinen Format,
+und dabei entstehen Teilnehmer mit fremden Texten. Das fällt beim Durchsehen kaum
+auf, verfälscht aber die Ziehung. **Übernimm in dem Fall nichts** — nutz lieber die
+Instagram-Anbindung oder trag die Teilnahmen als Tabelle ein.
 
 ## Teilnahmebedingungen
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseManualImport } from "@/platforms/manual-import";
+import { parseManualImport, wirktWieKopie } from "@/platforms/manual-import";
 import { generateSandboxComments } from "@/platforms/sandbox";
 import { evaluateEntries } from "@/rules/engine";
 
@@ -297,5 +297,114 @@ describe("Die Erkennung greift nicht zu früh", () => {
 
   it("lässt „Name: Text“ in Ruhe", () => {
     expect(parseManualImport("@anna: dabei\n@ben: auch").format).toBe("inline");
+  });
+});
+
+// ── Kopien in englischer App-Sprache ────────────────────────────────────────
+//
+// Die beiden echten Beispieldateien waren deutsche Kopien aus je einem Video.
+// Dass das Muster stimmt, sagt nichts darüber, ob es auch bei anderer
+// Spracheinstellung greift — und dort steht dieselbe Zeile anders da.
+
+describe("Instagram auf Englisch", () => {
+  const ENGLISCH = [
+    "anna_berg's profile picture",
+    "anna_berg",
+    "Ich bin dabei",
+    "2d",
+    "Reply",
+    "ben_wald's profile picture",
+    "ben_wald",
+    "Bin auch dabei",
+    "1w",
+    "Reply",
+    "carla_stein's profile picture",
+    "carla_stein",
+    "dabei 🎉",
+    "5h",
+    "Reply",
+  ].join("\n");
+
+  it("liest die englische Kopie wie die deutsche", () => {
+    const r = parseManualImport(ENGLISCH, new Date("2026-08-10T12:00:00Z"));
+    expect(r.format).toBe("instagram");
+    expect(r.comments.map((c) => c.username)).toEqual([
+      "anna_berg",
+      "ben_wald",
+      "carla_stein",
+    ]);
+    expect(r.comments[0].text).toBe("Ich bin dabei");
+  });
+
+  // „5m" heißt in der englischen App fünf Minuten. Als Monate gelesen läge
+  // der Kommentar ein knappes halbes Jahr zurück — und fiele bei einem
+  // Einsendeschluss durch, obwohl er von gerade eben ist.
+  it("liest die kurzen Zeiteinheiten als das, was sie sind", () => {
+    const jetzt = new Date("2026-08-10T12:00:00Z");
+    const r = parseManualImport(ENGLISCH, jetzt);
+    const [anna, ben, carla] = r.comments;
+    expect(anna.commentedAt.toISOString()).toBe("2026-08-08T12:00:00.000Z");
+    expect(ben.commentedAt.toISOString()).toBe("2026-08-03T12:00:00.000Z");
+    expect(carla.commentedAt.toISOString()).toBe("2026-08-10T07:00:00.000Z");
+  });
+});
+
+describe("wirktWieKopie", () => {
+  it("erkennt eine Kopie, deren Anker nicht greift", () => {
+    // Ohne die Profilbild-Zeilen fehlt der Anker — die übrigen Merkmale
+    // verraten trotzdem, woher der Text kommt.
+    const ohneAnker = [
+      "anna_berg",
+      "Ich bin dabei",
+      "2 Wo.",
+      "Antworten",
+      "ben_wald",
+      "Bin dabei",
+      "1 Wo.",
+      "Antworten",
+    ].join("\n");
+
+    expect(wirktWieKopie(ohneAnker.split("\n"))).toBe("Instagram");
+
+    const r = parseManualImport(ohneAnker);
+    expect(r.format).toBe("blocks");
+    expect(r.warnings[0]).toMatch(/sieht nach einer Instagram-Kopie aus/);
+  });
+
+  // Ein Fehlalarm wäre schlimmer als keine Warnung: Wer ihn zweimal
+  // wegklickt, liest ihn beim dritten Mal nicht mehr — auch dann nicht,
+  // wenn er stimmt.
+  it("schlägt bei einer ordentlichen CSV-Datei nicht an", () => {
+    const csv = [
+      "username;text;datum",
+      "anna_berg;Ich bin dabei;2026-08-01",
+      "ben_wald;Bin dabei;2026-08-02",
+    ].join("\n");
+    expect(wirktWieKopie(csv.split("\n"))).toBeNull();
+    expect(parseManualImport(csv).warnings).toEqual([]);
+  });
+
+  it("schlägt bei „Name: Text“ nicht an", () => {
+    const inline = ["@anna_berg: Ich bin dabei", "@ben_wald: Bin dabei"].join("\n");
+    expect(wirktWieKopie(inline.split("\n"))).toBeNull();
+    expect(parseManualImport(inline).warnings).toEqual([]);
+  });
+
+  it("verlangt mehr als ein einzelnes Merkmal", () => {
+    // „Antworten“ allein kann auch ein Kommentartext sein.
+    expect(wirktWieKopie(["anna_berg", "Antworten"])).toBeNull();
+  });
+
+  it("unterscheidet TikTok von Instagram", () => {
+    const tiktok = [
+      "anna_berg",
+      "Ich bin dabei",
+      "Jul 28",
+      "view 3 replies",
+      "ben_wald",
+      "Bin dabei",
+      "Aug 1",
+    ].join("\n");
+    expect(wirktWieKopie(tiktok.split("\n"))).toBe("TikTok");
   });
 });

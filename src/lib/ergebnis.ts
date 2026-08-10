@@ -18,6 +18,15 @@ export interface MitFehler {
   fehler?: string;
 }
 
+/// Fehlerklassen anderer Module, deren Text angezeigt werden darf.
+///
+/// Eine Liste statt eines einzelnen Namens, weil genau hier schon einmal
+/// etwas durchgefallen ist: `InstagramError` kam neu dazu, stand nicht drin,
+/// und im Produktionsbau war „error #441" zurück — der Fehler, gegen den
+/// dieses Modul überhaupt geschrieben wurde. **Wer eine neue Fehlerklasse
+/// dieser Art anlegt, trägt sie hier ein.**
+const ANZEIGBAR = new Set(["GitHubError", "InstagramError"]);
+
 /// Next.js signalisiert Weiterleitungen und "nicht gefunden" ueber geworfene
 /// Fehler mit besonderem digest. Die duerfen nie abgefangen werden, sonst
 /// bleibt der Benutzer stehen, wo er nicht stehen bleiben soll.
@@ -40,7 +49,7 @@ export async function alsErgebnis<T>(
     if (error instanceof Bedienfehler) return { fehler: error.message };
     // Fehler fremder Schichten, die trotzdem fuer den Betreiber gedacht sind,
     // erkennt man am Namen — so muss ergebnis.ts nichts von ihnen wissen.
-    if (error instanceof Error && error.name === "GitHubError") {
+    if (error instanceof Error && ANZEIGBAR.has(error.name)) {
       return { fehler: error.message };
     }
     throw error;

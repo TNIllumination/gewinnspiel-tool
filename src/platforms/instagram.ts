@@ -1,0 +1,338 @@
+// Kommentare unter eigenen Instagram-Beitraegen abrufen.
+//
+// Warum ueberhaupt: Der Kopierimport funktioniert, verlangt aber Handarbeit —
+// bei ein paar hundert Kommentaren scrollt und kopiert man in Etappen, und
+// jede Etappe ist eine Gelegenheit, etwas zu uebersehen.
+//
+// Welche Schnittstelle: Meta bietet zwei Wege zu denselben Kommentaren.
+// Hier laeuft alles ueber „Instagram API with Instagram Login"
+// (graph.instagram.com), nicht ueber den Weg mit Facebook-Anmeldung. Zwei
+// Gruende, beide praktisch:
+//
+//   1. Es braucht **keine** verknuepfte Facebook-Seite.
+//   2. Der Zugangsschluessel laesst sich **ohne App-Geheimnis** verlaengern.
+//      Damit muss das Tool nie ein Geheimnis der App kennen — nur den
+//      Schluessel, den es ohnehin hat.
+//
+// Bewusst ohne Bibliothek, wie schon bei GitHub: Node bringt fetch mit, und
+// es sind vier Endpunkte. Eine Abhaengigkeit weniger, die bei einem Update
+// kaputtgehen kann.
+//
+// Meta benennt seine Schnittstellen regelmaessig um. Deshalb steht der Host
+// samt Fassung **an genau einer Stelle** — aendert sich etwas, ist es eine
+// Zeile.
+
+import type { CommentInput } from "@/rules/engine";
+import type { MediaItem } from "./base";
+
+const API = "https://graph.instagram.com/v25.0";
+const TIMEOUT = 30000;
+
+/// Sicherheitsnetz gegen einen Abruf, der nicht mehr aufhoert.
+const MAX_KOMMENTARE = 5000;
+/// Instagram liefert hoechstens 50 je Seite — mehr zu verlangen bringt nichts.
+const SEITENGROESSE = 50;
+
+/// Ein Fehler, dessen Text so, wie er ist, angezeigt werden darf.
+export class InstagramError extends Error {
+  // alsErgebnis erkennt ihn am Namen, ohne dieses Modul kennen zu muessen.
+  // Ohne das zensiert Next.js im Produktionsbau den Text und uebrig bleibt
+  // „minified React error #441" — genau der Fehler aus Fassung 0.4.1.
+  name = "InstagramError";
+}
+
+export interface Zugangsinfo {
+  /// Kontoname ohne @.
+  username: string;
+  /// BUSINESS, MEDIA_CREATOR, … — Instagram schreibt es gross.
+  kontotyp: string;
+  userId: string;
+}
+
+export interface NeuerSchluessel {
+  token: string;
+  /// Wann er ablaeuft. Instagram gibt Sekunden, hier steht ein Zeitpunkt.
+  gueltigBis: Date;
+}
+
+// ── Der eine Weg nach draussen ──────────────────────────────────────────────
+
+interface Antwort {
+  status: number;
+  data: Record<string, unknown>;
+}
+
+async function hole(pfad: string, params: Record<string, string>): Promise<Antwort> {
+  const url = new URL(`${API}${pfad}`);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(TIMEOUT),
+    });
+  } catch {
+    throw new InstagramError(
+      "Instagram war nicht erreichbar. Prüf die Internetverbindung und " +
+        "versuch es noch einmal — es wurde nichts gespeichert.",
+    );
+  }
+
+  let data: Record<string, unknown> = {};
+  try {
+    data = (await res.json()) as Record<string, unknown>;
+  } catch {
+    data = {};
+  }
+
+  if (!res.ok) throw new InstagramError(uebersetze(res.status, data));
+  return { status: res.status, data };
+}
+
+/// Uebersetzt Metas Fehler in einen Satz, mit dem jemand etwas anfangen kann.
+/// „OAuthException, code 190" hilft niemandem weiter.
+function uebersetze(status: number, data: Record<string, unknown>): string {
+  const fehler = (data.error ?? {}) as Record<string, unknown>;
+  const code = Number(fehler.code ?? 0);
+  const subcode = Number(fehler.error_subcode ?? 0);
+  const meldung = String(fehler.message ?? "").trim();
+
+  // 190 ist der Sammelcode fuer alles rund um den Schluessel. Der Unterfall
+  // sagt, ob er abgelaufen ist oder zurueckgezogen wurde — fuer die Bedienung
+  // ist der Weg derselbe, deshalb eine Meldung.
+  if (code === 190 || status === 401) {
+    return (
+      "Der Instagram-Zugangsschlüssel wird nicht akzeptiert. Zwei Ursachen sind " +
+      "häufig: Er ist abgelaufen (er hält 60 Tage) — dann hol dir einen neuen. " +
+      "Oder er stammt aus der Einrichtung „mit Facebook-Login“; das Tool " +
+      "benutzt „API-Einrichtung mit Instagram-Login“, dafür brauchst du keine " +
+      "Facebook-Seite. Es wurde nichts gespeichert."
+    );
+  }
+
+  // 4 = App-Limit, 17 = Nutzer-Limit, 32 = Seiten-Limit, 613 = zu viele Aufrufe.
+  if (code === 4 || code === 17 || code === 32 || code === 613 || status === 429) {
+    return (
+      "Instagram lässt gerade keine weiteren Abrufe zu (Stundenlimit). " +
+      "Warte etwa eine Stunde und ruf dann erneut ab — bereits eingelesene " +
+      "Kommentare bleiben erhalten, es werden keine doppelt."
+    );
+  }
+
+  if (code === 10 || code === 200 || subcode === 2018001) {
+    return (
+      "Die App darf die Kommentare nicht lesen. Im Meta-Zugangsbereich müssen " +
+      "die Berechtigungen instagram_business_basic und " +
+      "instagram_business_manage_comments gesetzt sein — danach einen neuen " +
+      "Schlüssel erzeugen, denn die alten Berechtigungen hängen am alten Schlüssel."
+    );
+  }
+
+  if (status === 404 || code === 100) {
+    return (
+      "Diesen Beitrag gibt Instagram nicht heraus. Abrufen lassen sich nur " +
+      "Kommentare unter Beiträgen des verbundenen Kontos — wähl den Beitrag " +
+      "am besten aus der Liste, statt eine Kennung einzutippen." +
+      (meldung ? ` (Instagram meldet: ${meldung})` : "")
+    );
+  }
+
+  return (
+    `Instagram hat den Abruf abgelehnt (Status ${status}).` +
+    (meldung ? ` Meldung: ${meldung}` : "") +
+    " Es wurde nichts gespeichert."
+  );
+}
+
+// ── Zugang ──────────────────────────────────────────────────────────────────
+
+/// Wer ist da verbunden? Die Probe, die vor der Ziehung auffliegen laesst,
+/// was sonst mittendrin auffliegt.
+export async function pruefeZugang(token: string): Promise<Zugangsinfo> {
+  const { data } = await hole("/me", {
+    fields: "id,username,account_type",
+    access_token: token,
+  });
+
+  const username = String(data.username ?? "").trim();
+  if (!username) {
+    throw new InstagramError(
+      "Instagram hat geantwortet, aber keinen Kontonamen mitgeschickt. " +
+        "Das passiert bei privaten Konten — für den Abruf braucht es ein " +
+        "Profi-Konto (Creator oder Business).",
+    );
+  }
+
+  return {
+    username,
+    kontotyp: String(data.account_type ?? "").trim() || "unbekannt",
+    userId: String(data.id ?? ""),
+  };
+}
+
+/// Verlaengert den Schluessel um 60 Tage.
+///
+/// Geht ohne App-Geheimnis — der Schluessel verlaengert sich selbst. Meta
+/// verlangt allerdings, dass er **mindestens 24 Stunden alt** ist; einen
+/// frisch erzeugten lehnt es ab. Das steht deshalb auch in der Meldung.
+export async function verlaengereToken(token: string): Promise<NeuerSchluessel> {
+  const { data } = await hole("/refresh_access_token", {
+    grant_type: "ig_refresh_token",
+    access_token: token,
+  });
+
+  const neu = String(data.access_token ?? "");
+  const sekunden = Number(data.expires_in ?? 0);
+  if (!neu || !Number.isFinite(sekunden) || sekunden <= 0) {
+    throw new InstagramError(
+      "Instagram hat keinen neuen Schlüssel geliefert. Verlängern geht erst, " +
+        "wenn der Schlüssel mindestens 24 Stunden alt ist — bei einem gerade " +
+        "erzeugten also morgen.",
+    );
+  }
+
+  return { token: neu, gueltigBis: new Date(Date.now() + sekunden * 1000) };
+}
+
+// ── Beitraege ───────────────────────────────────────────────────────────────
+
+/// Die letzten eigenen Beitraege, zum Anklicken.
+///
+/// Warum nicht einfach die Beitragsadresse eintippen: Die Schnittstelle
+/// arbeitet mit einer Kennung, und es gibt keinen offiziellen Weg, aus
+/// instagram.com/p/ABC123/ diese Kennung zu machen. Also andersherum.
+export async function holeBeitraege(token: string, anzahl = 25): Promise<MediaItem[]> {
+  const { data } = await hole("/me/media", {
+    fields: "id,caption,media_type,permalink,timestamp,comments_count",
+    limit: String(Math.min(Math.max(anzahl, 1), 50)),
+    access_token: token,
+  });
+
+  const roh = Array.isArray(data.data) ? (data.data as Record<string, unknown>[]) : [];
+  return roh.map((m) => ({
+    externalId: String(m.id ?? ""),
+    caption: String(m.caption ?? "").trim(),
+    url: String(m.permalink ?? ""),
+    publishedAt: datum(m.timestamp) ?? new Date(),
+    commentCount: zahlOderNull(m.comments_count),
+  }));
+}
+
+// ── Kommentare ──────────────────────────────────────────────────────────────
+
+export interface AbrufErgebnis {
+  comments: CommentInput[];
+  /// Was uebersprungen wurde und warum — dieselbe Ehrlichkeit wie beim
+  /// Kopierimport, wo nicht zuordenbare Zeilen gemeldet statt verschluckt werden.
+  warnings: string[];
+  /// Wurde bei MAX_KOMMENTARE abgeschnitten?
+  abgeschnitten: boolean;
+}
+
+/// Alle Kommentare unter einem Beitrag, ueber alle Seiten hinweg.
+export async function holeKommentare(optionen: {
+  token: string;
+  mediaId: string;
+  maxComments?: number;
+}): Promise<AbrufErgebnis> {
+  const grenze = Math.min(optionen.maxComments ?? MAX_KOMMENTARE, MAX_KOMMENTARE);
+  const comments: CommentInput[] = [];
+  const warnings: string[] = [];
+  let ohneNamen = 0;
+  let abgeschnitten = false;
+
+  // Instagram blaettert ueber einen Cursor. Die erste Seite kommt ueber den
+  // Pfad, jede weitere ueber `after` — die vollstaendige `next`-Adresse
+  // absichtlich nicht: Die traegt den Schluessel im Klartext mit sich herum.
+  let after: string | null = null;
+  let seiten = 0;
+
+  do {
+    const params: Record<string, string> = {
+      fields: "id,text,username,timestamp,like_count",
+      limit: String(SEITENGROESSE),
+      access_token: optionen.token,
+    };
+    if (after) params.after = after;
+
+    const { data }: Antwort = await hole(`/${optionen.mediaId}/comments`, params);
+    const seite = Array.isArray(data.data) ? (data.data as Record<string, unknown>[]) : [];
+
+    for (const k of seite) {
+      if (comments.length >= grenze) {
+        abgeschnitten = true;
+        break;
+      }
+
+      const username = benutzername(k);
+      const text = String(k.text ?? "").trim();
+
+      // Ein Kommentar ohne Namen laesst sich niemandem zuordnen — und ohne
+      // Zuordnung ist er als Teilnahme wertlos. Instagram laesst den Namen
+      // bei geloeschten Konten weg.
+      if (!username) {
+        ohneNamen += 1;
+        continue;
+      }
+      if (!text) continue;
+
+      comments.push({
+        username,
+        text,
+        externalId: String(k.id ?? "") || null,
+        commentedAt: datum(k.timestamp) ?? new Date(),
+        likeCount: zahlOderNull(k.like_count) ?? 0,
+        platform: "INSTAGRAM",
+      });
+    }
+
+    const paging = (data.paging ?? {}) as Record<string, unknown>;
+    const cursors = (paging.cursors ?? {}) as Record<string, unknown>;
+    // Nur weiterblaettern, wenn Instagram wirklich eine naechste Seite meldet.
+    after = paging.next && cursors.after ? String(cursors.after) : null;
+    seiten += 1;
+
+    // Reissleine: 5000 Kommentare sind 100 Seiten. Kommt mehr, stimmt etwas
+    // nicht, und ein endloses Blaettern waere das Schlimmste.
+    if (seiten > 200) {
+      abgeschnitten = true;
+      break;
+    }
+  } while (after && !abgeschnitten);
+
+  if (ohneNamen > 0) {
+    warnings.push(
+      `${ohneNamen} Kommentar${ohneNamen === 1 ? "" : "e"} übersprungen — ` +
+        "Instagram hat keinen Benutzernamen mitgeschickt (meist gelöschte Konten).",
+    );
+  }
+  if (abgeschnitten) {
+    warnings.push(
+      `Es wurden die ersten ${comments.length} Kommentare eingelesen. ` +
+        "Mehr lässt das Tool bewusst nicht auf einmal zu.",
+    );
+  }
+
+  return { comments, warnings, abgeschnitten };
+}
+
+/// Der Name steht je nach Schnittstellenfassung direkt drin oder unter `from`.
+/// Beides zu lesen kostet drei Zeilen und erspart einen leeren Import.
+function benutzername(k: Record<string, unknown>): string {
+  const direkt = String(k.username ?? "").trim();
+  if (direkt) return direkt.replace(/^@/, "");
+  const from = (k.from ?? {}) as Record<string, unknown>;
+  return String(from.username ?? "").trim().replace(/^@/, "");
+}
+
+function datum(wert: unknown): Date | null {
+  if (typeof wert !== "string" || !wert) return null;
+  const d = new Date(wert);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function zahlOderNull(wert: unknown): number | null {
+  const n = Number(wert);
+  return Number.isFinite(n) ? n : null;
+}

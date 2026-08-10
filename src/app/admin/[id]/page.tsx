@@ -15,16 +15,20 @@ import {
   completeGiveaway,
   confirmManualImport,
   deletePrize,
+  importInstagram,
   importSandbox,
+  instagramBeitraege,
   performDraw,
   previewManualImport,
   publishPage,
   releaseCommit,
   saveRules,
   submitVerification,
+  waehleBeitrag,
 } from "../actions";
 import { ActionForm } from "@/components/action-form";
 import { ManualImport } from "@/components/manual-import";
+import { InstagramAbruf } from "@/components/instagram-abruf";
 import { TextePanel } from "@/components/texte-panel";
 import { VeroeffentlichtCheckliste } from "@/components/veroeffentlicht-checkliste";
 import {
@@ -85,6 +89,16 @@ export default async function GiveawayPage({
     }));
 
   const settings = await db.settings.findUnique({ where: { id: "settings" } });
+
+  // Welche Quellen können ihre Kommentare selbst holen? Endlich werden die
+  // Capabilities aus platforms/base.ts wirklich gelesen, statt nur
+  // dokumentiert zu sein: Was die Schnittstelle nicht hergibt, wird gar nicht
+  // erst als Knopf angeboten — und was sie hergibt, nur mit Schlüssel.
+  const instaQuelle = giveaway.sources.find((s) => s.platform === "INSTAGRAM");
+  const instaAbruf =
+    instaQuelle && getPlatform("INSTAGRAM").capabilities.canFetchComments
+      ? { quelle: instaQuelle, verbunden: Boolean(settings?.instagramToken) }
+      : null;
 
   const [total, valid, lotsAgg, perPlatform] = await Promise.all([
     db.entry.count({ where: { giveawayId: id } }),
@@ -416,6 +430,30 @@ export default async function GiveawayPage({
                   nicht erfüllen — so siehst du, wie die Prüfung begründet ablehnt.
                 </p>
               </ActionForm>
+            </div>
+          ) : null}
+
+          {instaAbruf ? (
+            <div className="mb-6">
+              {instaAbruf.verbunden ? (
+                <InstagramAbruf
+                  beitraege={instagramBeitraege}
+                  waehlen={waehleBeitrag.bind(null, id)}
+                  abrufen={importInstagram.bind(null, id)}
+                  gewaehlt={instaAbruf.quelle.externalId}
+                  gewaehltesLabel={instaAbruf.quelle.postLabel}
+                />
+              ) : (
+                <Notice title="Instagram-Kommentare gehen auch automatisch">
+                  Verbinde dein Instagram-Konto unter{" "}
+                  <Link href="/admin/einstellungen" className="underline">
+                    Einstellungen
+                  </Link>
+                  , dann holt das Tool die Kommentare selbst — auch die, die beim
+                  Scrollen durchgerutscht wären. Eine Freigabe durch Meta brauchst du
+                  dafür nicht. Bis dahin fügst du sie wie gewohnt unten ein.
+                </Notice>
+              )}
             </div>
           ) : null}
 

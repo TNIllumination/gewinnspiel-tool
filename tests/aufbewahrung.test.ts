@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TAG_MS, faelligkeit } from "@/lib/aufbewahrung";
+import { TAG_MS, faelligkeit, tokenFrist } from "@/lib/aufbewahrung";
 
 const JETZT = new Date("2026-08-10T12:00:00Z").getTime();
 const vorTagen = (n: number) => new Date(JETZT - n * TAG_MS);
@@ -63,5 +63,40 @@ describe("faelligkeit", () => {
         JETZT,
       ),
     ).toEqual({ loeschbar: 5, ueberfaellig: 0 });
+  });
+});
+
+describe("tokenFrist", () => {
+  const inTagen = (n: number) => new Date(JETZT + n * TAG_MS);
+
+  it("schweigt ohne hinterlegten Schlüssel", () => {
+    expect(tokenFrist(null, JETZT)).toBeNull();
+  });
+
+  it("schweigt, solange reichlich Zeit ist", () => {
+    expect(tokenFrist(inTagen(45), JETZT)).toEqual({
+      tage: 45,
+      abgelaufen: false,
+      warnen: false,
+    });
+  });
+
+  it("warnt ab zwei Wochen Restlaufzeit", () => {
+    expect(tokenFrist(inTagen(15), JETZT)?.warnen).toBe(false);
+    expect(tokenFrist(inTagen(14), JETZT)?.warnen).toBe(true);
+  });
+
+  // Ein abgelaufener Schluessel darf nicht als „noch 0 Tage" durchgehen —
+  // das liest sich wie „heute noch".
+  it("meldet einen abgelaufenen Schlüssel als abgelaufen", () => {
+    const stand = tokenFrist(inTagen(-3), JETZT);
+    expect(stand?.abgelaufen).toBe(true);
+    expect(stand?.tage).toBe(-3);
+    expect(stand?.warnen).toBe(true);
+  });
+
+  // Aufrunden statt abschneiden: Ein halber Tag Rest ist „1 Tag", nicht „0".
+  it("rundet angebrochene Tage auf", () => {
+    expect(tokenFrist(new Date(JETZT + TAG_MS / 2), JETZT)?.tage).toBe(1);
   });
 });

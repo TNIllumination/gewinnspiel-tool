@@ -85,9 +85,12 @@ try {
     return true;
   };
 
-  await page.getByRole("button", { name: "Verbindung prüfen" }).click();
+  // Seit Fassung 0.8.0 gibt es zwei Karten mit „Verbindung prüfen" — GitHub
+  // und Instagram. Hier ist GitHub gemeint.
+  const githubKarte = page.locator("section", { hasText: "Hochladen auf GitHub" });
+  await githubKarte.getByRole("button", { name: "Verbindung prüfen" }).click();
   await page.waitForTimeout(2500);
-  const pruefText = await page.locator('[role="alert"]').first().innerText();
+  const pruefText = await githubKarte.locator('[role="alert"]').first().innerText();
   if (!lesbar(pruefText, "Verbindung prüfen")) {
     // Meldung schon ausgegeben
   } else if (!/Zugangsschlüssel|Repository/.test(pruefText)) {
