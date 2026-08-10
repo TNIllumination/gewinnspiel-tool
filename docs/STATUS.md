@@ -4,7 +4,7 @@
 > Wiedereinstiegspunkt — egal ob am Handy, am PC oder in einer neuen Sitzung.
 
 **Letzte Aktualisierung:** 11. August 2026
-**Aktuelle Phase:** 1 — lauffähig ohne jede Plattform-Freigabe
+**Aktuelle Phase:** 1 — lauffähig ohne jede Plattform-Freigabe (Fassung **1.0.0**)
 
 ## Fertig
 
@@ -26,7 +26,7 @@
   Zeilen werden gemeldet, nicht verschluckt.
 - **Testmodus** (`src/platforms/sandbox.ts`): erfundene Teilnehmer für den
   kompletten Ablauf ohne echte Daten.
-- **290 Tests**, alle grün (`npm test`).
+- **298 Tests**, alle grün (`npm test`).
 
 - **Oberfläche Phase 1 vollständig**: Ersteinrichtung und Login (Cookie-Session
   mit `jose`, bcrypt-Hash), Dashboard, Gewinnspiel-Detailseite mit Import, Regeln,
@@ -196,6 +196,28 @@
   zufaellig), und Eigene werden vor Antworten gezaehlt — die eigenen Kommentare sind
   ueberwiegend Antworten, sonst stuende „0 eigene". Testbeispiele stammen aus dem
   echten Abruf (157 Eintraege, 4 Seiten).
+
+- **Fassung 1.0.0**: `deleteGiveaway` ist erreichbar und nimmt die veroeffentlichte
+  Seite mit. Die Reihenfolge ist der ganze Punkt: erst `uploadFiles(..., deletePaths)`
+  (Baumeintrag mit `sha: null` entfernt den Pfad im selben Commit) und die neue
+  Uebersicht, **dann** `db.giveaway.delete`. Schlaegt das Hochladen fehl, wird die
+  oertliche Datei aus dem gemerkten Inhalt zurueckgeschrieben — sonst waere „nichts
+  geloescht" gelogen. `mitGitHub` trennt „kein Schluessel hinterlegt" von
+  „Hochladen fehlgeschlagen"; ohne Zugang liesse sich sonst gar nicht mehr loeschen.
+  Bei gezogener Verlosung muss der Titel abgetippt werden.
+  `pruefen.mjs` (Wurzelverzeichnis, ohne Abhaengigkeiten, ohne Import aus `src/`)
+  rechnet eine veroeffentlichte Ziehung nach — **bewusst nachgebaut**, ein Pruefer
+  mit denselben Zeilen prueft nichts; `tests/pruefen.test.ts` haelt Nachbau und
+  `src/draw/` fuer mehrere Seeds aneinander. Moeglich wurde das erst durch
+  `gezogeneReihenfolge` in `PublishInput`: Ausgewiesen war bisher nur die
+  **aufgeloeste** Platzverteilung, und sobald ein Nachruecker aufgerueckt war, liess
+  sich von aussen nichts mehr reproduzieren. Veroeffentlicht wird `username|ref` je
+  Zug — der blosse Name ist nicht eindeutig, wer zweimal im Topf steht.
+  Dazu drei Befunde aus der Durchsicht: `submitVerification` gibt jetzt zurueck statt
+  zu verschlucken, `maskUsernames` ist samt Migration raus (Attrappe — die Pruefsumme
+  entsteht ueber die Klarnamen), und das Sitzungs-Cookie ist nicht mehr `secure`
+  (ueber `http://192.168.…:3000` verwirft der Browser es; nur `localhost` gilt als
+  sicherer Kontext).
 
 ## Als Nächstes
 

@@ -3,6 +3,7 @@
 import { chromium } from "playwright";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 
 const B = "http://localhost:3000";
 const EMAIL = "rauchtest@example.com";
@@ -131,6 +132,7 @@ try {
   await page.fill('input[name="substituteCount"]', "2");
   await page.getByRole("button", { name: "Anlegen", exact: true }).click();
   await page.waitForURL(/\/admin\/[a-z0-9]+$/);
+  const gewinnspielId = page.url().split("/").pop();
   const slug = (await page
     .getByRole("link", { name: "Öffentliche Seite" })
     .getAttribute("href"))
@@ -404,6 +406,46 @@ try {
 
   await pub.screenshot({ path: "/tmp/030-public.png", fullPage: true });
   await page.screenshot({ path: "/tmp/030-admin.png", fullPage: true });
+  await pub.close();
+
+  // ── Nachrechnen von aussen ────────────────────────────────────────────────
+  // Der Kern des Versprechens: Ein Dritter mit nichts als Node muss die
+  // Ziehung nachrechnen können. Genau das wird hier ausgeführt.
+  const pruefung = spawnSync(
+    "node",
+    ["pruefen.mjs", `veroeffentlichung/${slug}.html`],
+    { encoding: "utf8" },
+  );
+  if (pruefung.status !== 0) {
+    no("Nachrechnen", `pruefen.mjs meldet Abweichung:\n${pruefung.stdout}`);
+  } else if (!/Ziehung:\s+stimmt/.test(pruefung.stdout)) {
+    no("Nachrechnen", "die Ziehung wurde nicht bestätigt");
+  } else {
+    ok("Ziehung von aussen nachgerechnet", "pruefen.mjs bestätigt Liste und Ergebnis");
+  }
+
+  // ── Löschen ───────────────────────────────────────────────────────────────
+  // Gezogen: Ohne abgetippten Titel darf nichts passieren.
+  await page.goto(`${B}/admin/${gewinnspielId}`);
+  await page.getByRole("button", { name: "Gewinnspiel endgültig löschen" }).click();
+  await page.waitForTimeout(2000);
+
+  if (!(await page.innerText("body")).includes("tipp den Titel")) {
+    no("Löschen", "eine gezogene Verlosung liess sich ohne Rückfrage löschen");
+  } else {
+    ok("Gezogene Verlosung verlangt den abgetippten Titel");
+  }
+
+  await page.fill('input[name="titelBestaetigung"]', "Festival-Verlosung");
+  await page.getByRole("button", { name: "Gewinnspiel endgültig löschen" }).click();
+  await page.waitForURL("**/admin", { timeout: 30000 });
+
+  const uebrig = await page.innerText("body");
+  if (uebrig.includes("Festival-Verlosung")) {
+    no("Löschen", "das Gewinnspiel steht noch in der Übersicht");
+  } else {
+    ok("Gelöscht — aus der Übersicht verschwunden");
+  }
 } catch (e) {
   no("Abgebrochen", e.message);
   const dump = await page.innerText("body").catch(() => "(kein Text)");

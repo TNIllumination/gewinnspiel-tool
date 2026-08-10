@@ -168,7 +168,6 @@ model Giveaway {
 
   /// Oeffentliche Darstellung
   publicResults  Boolean @default(true)
-  maskUsernames  Boolean @default(false)
   /// Aufbewahrung der Teilnehmerdaten nach der Ziehung, in Tagen.
   retentionDays  Int     @default(30)
 

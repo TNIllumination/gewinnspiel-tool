@@ -385,6 +385,51 @@ manipulieren, ohne dass es auffällt.
 Das ist der Unterschied zwischen „vertrau mir" und „rechne selbst nach" — ein
 starkes Argument, wenn jemand die Fairness anzweifelt.
 
+### Selbst nachrechnen: `pruefen.mjs`
+
+„Rechne selbst nach" ist nur dann etwas wert, wenn es auch jemand kann. Deshalb
+liegt im Projektordner ein kleines Programm, das genau das tut:
+
+```
+node pruefen.mjs https://deinname.github.io/gewinnspiele/verlosung.html
+node pruefen.mjs gespeicherte-seite.html
+```
+
+Es liest Teilnehmerliste, Prüfsumme, Zufallszahl und die gezogene Reihenfolge aus
+der veröffentlichten Seite und antwortet in zwei Sätzen:
+
+```
+Teilnehmer:   250
+Lose:         318
+Prüfsumme:    stimmt
+Ziehung:      stimmt
+
+✅ Alles stimmt.
+```
+
+**Es prüft zwei verschiedene Dinge**, und der Unterschied ist der Punkt:
+
+- **Prüfsumme stimmt** heißt: An der Teilnehmerliste wurde nach der
+  Veröffentlichung nichts verändert.
+- **Ziehung stimmt** heißt: Die genannte Reihenfolge folgt tatsächlich aus dieser
+  Liste und dieser Zufallszahl. Das belegt die Prüfsumme *nicht* — sie sagt nur
+  etwas über die Liste, nichts über das Ergebnis.
+
+Das Programm ist bewusst ein **eigenständiger Nachbau**: Es benutzt keine einzige
+Zeile aus dem Tool und braucht außer Node.js nichts. Ein Prüfer, der dieselbe
+Bibliothek benutzt wie der Geprüfte, prüft nichts — beide wären auf dieselbe Weise
+falsch. Die knapp hundert Zeilen sind zum Lesen gedacht.
+
+Wer zweifelt, braucht also weder dieses Tool noch dein Vertrauen: Seite speichern,
+Node.js installieren, ein Befehl. Auf der veröffentlichten Seite steht der Aufruf
+mit drauf, unter **Selbst nachrechnen**.
+
+Damit das aufgeht, veröffentlicht das Tool die **gezogene Reihenfolge** getrennt von
+der Platzverteilung. Beides kann auseinandergehen: Lehnst du einen Gewinner ab,
+rückt der Nächste auf Platz 1 — gezogen wurde er trotzdem als Zweiter. Nachrechnen
+lässt sich nur die Ziehung, nicht deine spätere Entscheidung; deshalb stehen beide
+Angaben da.
+
 ## Gewinner prüfen und Nachrücker
 
 Gezogen wird der Gewinner **plus mehrere Nachrücker** (Standard: 5).
@@ -484,6 +529,32 @@ nicht mehr nachrechnen — sie wurde über die vollständige Liste gebildet. Sch
 auf die Seite oder unter den Beitrag, statt es unerwähnt zu lassen. Das ist kein
 Fehler des Verfahrens: Ein Löschverlangen sticht die Nachrechenbarkeit, und ehrlich
 vermerkt ist es nachvollziehbar.
+
+### Ein ganzes Gewinnspiel löschen
+
+Ganz unten auf der Gewinnspielseite steht **Gewinnspiel endgültig löschen**. Damit
+verschwindet alles, was daran hängt: Teilnahmen, Regeln, Gewinne, Ziehung, Prüfsumme,
+Zufallszahl, Gewinner, Nachrücker und die Prüfvermerke.
+
+Die Rückfrage nennt vorher die Zahlen — „damit verschwinden 250 Teilnahmen, die
+Ziehung und 3 Gewinner mit Nachrückern" — statt allgemein zu warnen. Bei einem
+**bereits gezogenen** Gewinnspiel musst du zusätzlich den Titel abtippen. Das ist
+Absicht: Der veröffentlichte Nachweis ist dein Schutz, falls jemand die Verlosung
+anzweifelt, und der ist danach weg.
+
+**Die veröffentlichte Seite wird mitgelöscht.** Ist ein GitHub-Zugangsschlüssel
+hinterlegt, entfernt das Tool die Seite aus deinem Repository und schreibt die
+Übersicht neu — in einem Schritt, bevor örtlich irgendetwas gelöscht wird. Klappt
+das Hochladen nicht, bleibt das Gewinnspiel **vollständig** erhalten und die Meldung
+sagt warum. Andernfalls hättest du die Daten verloren, und die Seite stünde weiter
+im Netz.
+
+Ohne hinterlegten Schlüssel entfällt dieser Schritt. Dann sagt die Rückfrage
+ausdrücklich, dass die Seite online bleibt und von Hand aus dem Repository zu
+entfernen ist.
+
+Bis GitHub Pages die Änderung ausgeliefert hat, vergehen wie immer ein bis zwei
+Minuten.
 
 ### Die Datei `.env`
 

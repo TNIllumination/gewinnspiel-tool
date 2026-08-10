@@ -195,8 +195,19 @@ export async function uploadFiles({
   token,
   files,
   message,
-}: Zugang & { files: UploadFile[]; message: string }) {
-  if (files.length === 0) throw new GitHubError("Es gibt nichts hochzuladen.");
+  deletePaths = [],
+}: Zugang & {
+  files: UploadFile[];
+  message: string;
+  /// Pfade, die dieser Commit **entfernt** — etwa die Seite eines geloeschten
+  /// Gewinnspiels. Im Verzeichnisbaum bekommen sie `sha: null`; damit nimmt
+  /// Git sie im selben Commit heraus, in dem die uebrigen Dateien neu
+  /// geschrieben werden.
+  deletePaths?: string[];
+}) {
+  if (files.length === 0 && deletePaths.length === 0) {
+    throw new GitHubError("Es gibt nichts hochzuladen.");
+  }
 
   const info = await request(token, `/repos/${repo}`);
   if (info.status !== 200) throw new GitHubError(uebersetze(info.status, repo));
@@ -236,12 +247,21 @@ export async function uploadFiles({
     method: "POST",
     body: JSON.stringify({
       base_tree: baseCommit,
-      tree: blobs.map((b) => ({
-        path: b.path,
-        mode: "100644",
-        type: "blob",
-        sha: b.sha,
-      })),
+      tree: [
+        ...blobs.map((b) => ({
+          path: b.path,
+          mode: "100644",
+          type: "blob",
+          sha: b.sha,
+        })),
+        // `sha: null` heisst fuer Git: aus dem Baum nehmen.
+        ...deletePaths.map((path) => ({
+          path,
+          mode: "100644",
+          type: "blob",
+          sha: null,
+        })),
+      ],
     }),
   });
   if (tree.status !== 201) throw new GitHubError(uebersetze(tree.status, repo));

@@ -1,5 +1,19 @@
 # Was sich geändert hat
 
+## 1.0.0
+
+Die erste Fassung, die vollständig ist: Alles, was das Tool verspricht, lässt sich
+auch einlösen — auch von jemandem, der dir nicht glaubt.
+
+- **Gewinnspiele lassen sich löschen** — mitsamt der veröffentlichten Seite. Die wird aus deinem Repository entfernt und die Übersicht neu geschrieben, **bevor** örtlich irgendetwas gelöscht wird. Klappt das Hochladen nicht, bleibt das Gewinnspiel vollständig erhalten und die Meldung sagt warum. Andersherum wären die Daten weg und die Seite stünde weiter im Netz — mit Namen von Teilnehmern, für die es keine Grundlage mehr gibt
+- Die Rückfrage nennt Zahlen statt Allgemeinplätzen („250 Teilnahmen, die Ziehung, 3 Gewinner mit Nachrückern"). Bei einer **bereits gezogenen** Verlosung musst du den Titel abtippen — dieselbe Hürde, die GitHub beim Löschen eines Repositories setzt. Mit dem Nachweis verschwindet das, was dich schützt, falls jemand die Ziehung anzweifelt
+- Ohne hinterlegten GitHub-Schlüssel bleibt die Seite online. Das steht **vor** dem Klick in der Karte, nicht als Meldung danach
+- **Neu: `node pruefen.mjs <Adresse oder Datei>`.** Rechnet eine veröffentlichte Ziehung nach und sagt in zwei Sätzen, ob sie stimmt. Bewusst ein **eigenständiger Nachbau ohne jede Abhängigkeit** — ein Prüfprogramm, das dieselben Zeilen benutzt wie das Geprüfte, beweist nichts. Ein Test hält beide aneinander
+- **Die gezogene Reihenfolge wird jetzt veröffentlicht**, getrennt von der Platzverteilung. Ohne sie war „nachrechenbar" nicht einlösbar: Ausgewiesen war nur, wer welchen Platz belegt — sobald ein Nachrücker aufgerückt war, ließ sich das von außen gar nicht mehr reproduzieren. Auf der Seite steht jetzt beides, dazu der Abschnitt **Selbst nachrechnen** mit dem genauen Verfahren und dem Aufruf
+- **Fehler beim Bestätigen eines Gewinners kamen nirgends an**: `submitVerification` gab das Ergebnis nicht zurück, ein Bedienfehler verschwand still — es passierte einfach nichts
+- **Anmeldung aus dem Heimnetz funktioniert wieder.** Das Sitzungs-Cookie war `secure`; über `http://192.168.…:3000` verwirft der Browser es, weil nur `localhost` als sicherer Kontext gilt. Vom Handy kam man damit nicht hinein
+- `maskUsernames` entfernt. Das Feld stand im Datenmodell, war nirgends einstellbar und hätte sich auch nicht ehrlich umsetzen lassen — die Prüfsumme entsteht über die Klarnamen
+
 ## 0.9.1
 
 - **Richtiggestellt:** In 0.9.0 stand als Ursache für fehlende Benutzernamen „erzeug einen neuen Zugangsschlüssel". Ein echter Abruf zeigt: Es lag am Tool. Bei fremden Kommentaren liefert Instagram den Namen **nur** unter `from`, das bloße `username` gibt es ausschließlich bei den eigenen — deshalb kamen genau die durch. Das Feld `from` wird seit 0.9.0 mit angefordert, damit war es behoben; die Erklärung war falsch und schickte in die Meta-Konsole, wo nichts zu holen war

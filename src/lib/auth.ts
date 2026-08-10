@@ -35,10 +35,18 @@ export async function createSession(userId: string) {
     .setExpirationTime(`${MAX_AGE_SECONDS}s`)
     .sign(secret());
 
+  // Kein `secure`-Merkmal: Das Tool laeuft ueber http auf dem eigenen Rechner.
+  // `localhost` gilt Browsern als sicherer Kontext, eine Adresse wie
+  // http://192.168.1.20:3000 aber nicht — dort wuerde ein `secure`-Cookie
+  // verworfen und die Anmeldung schluege fehl, ohne dass man sieht warum.
+  // Genau so bedient man das Tool vom Tablet aus.
+  //
+  // Was dadurch nicht schlechter wird: Der Server ist ohnehin nur im eigenen
+  // Netz erreichbar, und wer dort mitliest, koennte auch gleich die
+  // Datenbankdatei lesen.
   (await cookies()).set(COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: MAX_AGE_SECONDS,
   });

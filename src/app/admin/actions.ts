@@ -16,7 +16,8 @@ import {
 } from "@/lib/auth";
 import { evaluateEntries, type CommentInput, type RuleSpec } from "@/rules/engine";
 import { entryFingerprint } from "@/rules/text";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { commit, draw, type Entrant } from "@/draw/commit-reveal";
 import { prizeIdForSlot, resolveWinners } from "@/draw/promotion";
@@ -180,16 +181,102 @@ export async function createGiveaway(formData: FormData) {
   });
 }
 
-export async function deleteGiveaway(giveawayId: string) {
+/// Loescht ein Gewinnspiel — und die dazu veroeffentlichte Seite.
+///
+/// Die Reihenfolge ist der ganze Punkt: **Zuerst** die Seite aus dem
+/// Repository nehmen, **dann** oertlich loeschen. Schlaegt das Hochladen fehl,
+/// bleibt alles stehen und die Meldung sagt warum. Andersherum waeren die
+/// Daten weg und die Seite stuende weiter im Netz — mit Namen von Teilnehmern,
+/// zu denen es keine Grundlage mehr gibt.
+export async function deleteGiveaway(giveawayId: string, formData?: FormData) {
   return alsErgebnis(async () => {
     const userId = await requireUser();
+
+    const giveaway = await db.giveaway.findUniqueOrThrow({
+      where: { id: giveawayId },
+      include: {
+        draws: { orderBy: { committedAt: "desc" }, take: 1 },
+        _count: { select: { entries: true } },
+      },
+    });
+
+    // Bei einer gezogenen Verlosung ist der Nachweis das, was schuetzt, falls
+    // jemand sie im Nachhinein anzweifelt. Deshalb dieselbe Huerde, die GitHub
+    // beim Loeschen eines Repositories setzt: den Titel abtippen.
+    const gezogen = Boolean(giveaway.draws[0]?.drawnAt);
+    const eingetippt = String(formData?.get("titelBestaetigung") ?? "").trim();
+    if (gezogen && eingetippt !== giveaway.title) {
+      fail(
+        "Diese Verlosung wurde bereits gezogen. Zum Löschen tipp den Titel " +
+          `„${giveaway.title}“ genau so ein — mit dem Nachweis verschwindet ` +
+          "auch das, was dich schützt, falls jemand die Ziehung anzweifelt.",
+      );
+    }
+
+    const dateiname = `${giveaway.slug}.html`;
+    const oertlich = join(process.cwd(), PUBLISH_DIR, dateiname);
+    const warVeroeffentlicht = existsSync(oertlich);
+
+    // „Kein Schluessel hinterlegt" ist etwas anderes als „Hochladen
+    // fehlgeschlagen": Im ersten Fall gibt es nichts zu entfernen, im zweiten
+    // ist etwas schiefgegangen. Beides gleich zu behandeln hiesse, dass ohne
+    // GitHub-Zugang ueberhaupt nicht mehr geloescht werden koennte — und ohne
+    // Zugang arbeitet das Tool ausdruecklich weiter.
+    const mitGitHub = Boolean(await githubZugang());
+
+    if (warVeroeffentlicht) {
+      // Inhalt merken, bevor die Datei verschwindet: Schlaegt das Hochladen
+      // fehl, wird er zurueckgeschrieben. Sonst waere die Meldung „nichts
+      // geloescht" gelogen — die Datei waere weg und die Uebersicht geaendert.
+      const vorher = await readFile(oertlich, "utf8");
+
+      // Erst die oertliche Datei weg, damit die neue Uebersicht sie nicht mehr
+      // listet — sie entsteht aus dem Ordnerinhalt.
+      await rm(oertlich, { force: true });
+      await writeIndexPage();
+
+      if (mitGitHub) {
+        const upload = await ladeHoch(
+          await publishedFiles(),
+          `Gewinnspiel „${giveaway.title}“ entfernt`,
+          [dateiname],
+        );
+
+        if (!upload.hochgeladen) {
+          await writeFile(oertlich, vorher, "utf8");
+          await writeIndexPage();
+          fail(
+            "Die veröffentlichte Seite konnte nicht entfernt werden — deshalb " +
+              "wurde nichts gelöscht. " +
+              (upload.hinweis ?? "") +
+              " Versuch es erneut, sobald die Verbindung steht.",
+          );
+        }
+      }
+      // Ohne GitHub-Zugang bleibt die Seite online. Darauf weist die Karte
+      // schon **vor** dem Klick hin — hinterher waere es zu spaet, und eine
+      // Meldung statt der Weiterleitung liesse den Betreiber auf einer Seite
+      // stehen, die es nicht mehr gibt.
+    }
+
+    // Erst jetzt oertlich loeschen. Teilnahmen, Ziehung, Gewinner, Pruefungen
+    // und Ansprueche haengen per Fremdschluessel daran und gehen mit.
     await db.giveaway.delete({ where: { id: giveawayId } });
+
     await audit({
       action: "giveaway.deleted",
       entity: "Giveaway",
       entityId: giveawayId,
       actor: userId,
+      detail: {
+        titel: giveaway.title,
+        teilnahmen: giveaway._count.entries,
+        gezogen,
+        seiteEntfernt: warVeroeffentlicht,
+      },
     });
+
+    revalidatePath("/admin");
     redirect("/admin");
   });
 }
@@ -796,15 +883,16 @@ export async function submitVerification(
   passed: boolean,
   formData: FormData,
 ) {
-  return alsErgebnis(async () => {
-    await setVerification(
-      drawResultId,
-      passed,
-      formData.get("follows") === "on" ? true : null,
-      formData.get("liked") === "on" ? true : null,
-      String(formData.get("note") ?? "").trim() || undefined,
-    );
-  });
+  // `return`, nicht `await`: `setVerification` gibt einen Bedienfehler als
+  // Wert zurueck. Ohne das Weiterreichen verschwaende er hier — beim
+  // Bestaetigen eines Gewinners passierte dann einfach nichts.
+  return setVerification(
+    drawResultId,
+    passed,
+    formData.get("follows") === "on" ? true : null,
+    formData.get("liked") === "on" ? true : null,
+    String(formData.get("note") ?? "").trim() || undefined,
+  );
 }
 
 /// Nimmt die Festschreibung zurück, solange noch nicht gezogen wurde.
@@ -1003,12 +1091,13 @@ export interface UploadErgebnis {
 async function ladeHoch(
   files: { path: string; content: string }[],
   message: string,
+  deletePaths: string[] = [],
 ): Promise<UploadErgebnis> {
   const zugang = await githubZugang();
   if (!zugang) return { hochgeladen: false };
 
   try {
-    const ergebnis = await uploadFiles({ ...zugang, files, message });
+    const ergebnis = await uploadFiles({ ...zugang, files, message, deletePaths });
     const pages = await ensurePages(zugang);
     return {
       hochgeladen: true,
@@ -1178,6 +1267,11 @@ export async function publishPage(giveawayId: string) {
       }));
       const resolved = resolveWinners(slotCandidates, draw.winnerSlots);
       const byId = new Map(draw.results.map((r) => [r.id, r]));
+      // Der Schnappschuss traegt die Kennungen, mit denen die Pruefsumme
+      // gebildet wurde — dieselben, die in der veroeffentlichten Liste stehen.
+      const snapshotById = new Map(
+        (draw.entrantsSnapshot as unknown as Entrant[]).map((e) => [e.id, e]),
+      );
       const prizeById = new Map(giveaway.prizes.map((p) => [p.id, p]));
 
       drawData = {
@@ -1208,6 +1302,22 @@ export async function publishPage(giveawayId: string) {
           const result = byId.get(r.id);
           return result ? [`@${result.entry.username}`] : [];
         }),
+        // Bewusst aus `draw.results` nach Rang statt aus `resolved`: Hier steht,
+        // was die Ziehung ergeben hat, nicht wer am Ende welchen Platz belegt.
+        // Nur diese Reihenfolge folgt aus Liste und Zufallszahl — und nur sie
+        // laesst sich deshalb von aussen nachrechnen.
+        //
+        // Ausgewiesen wird die **Kennung aus der Teilnehmerliste**, nicht der
+        // blosse Name: Wer auf zwei Plattformen kommentiert hat, steht dort
+        // zweimal, und „@anna_berg" allein sagt niemandem, welche der beiden
+        // Teilnahmen gezogen wurde. Ohne diese Kennung ist der Nachweis nicht
+        // nachrechenbar — auch nicht von Hand.
+        gezogeneReihenfolge: [...draw.results]
+          .sort((a, b) => a.rank - b.rank)
+          .map((r) => {
+            const e = snapshotById.get(r.entryId);
+            return e ? `${e.username}|${e.ref}` : `@${r.entry.username}`;
+          }),
       };
     }
 
@@ -1217,6 +1327,7 @@ export async function publishPage(giveawayId: string) {
       organizer: who.organizer,
       contact: who.contact,
       impressumUrl: who.impressumUrl,
+      seiteUrl: who.publishBaseUrl ? `${who.publishBaseUrl}/${giveaway.slug}.html` : null,
       draw: drawData,
     });
 

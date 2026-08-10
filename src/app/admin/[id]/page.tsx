@@ -14,6 +14,7 @@ import {
   commitEntrants,
   completeGiveaway,
   confirmManualImport,
+  deleteGiveaway,
   deletePrize,
   importInstagram,
   importSandbox,
@@ -838,6 +839,66 @@ export default async function GiveawayPage({
           ) : null}
         </Card>
       ) : null}
+
+      {/* ── Löschen ──────────────────────────────────────────────────── */}
+      {/* Ganz unten und abgesetzt: Was sich nicht zurückholen lässt, gehört
+          nicht neben die alltäglichen Knöpfe. */}
+      <Card className="border-red-200">
+        <CardTitle hint="Lässt sich nicht rückgängig machen.">
+          Gewinnspiel löschen
+        </CardTitle>
+
+        <p className="mb-4 text-sm text-slate-600">
+          Damit verschwinden <strong>{total} Teilnahmen</strong>
+          {currentDraw ? (
+            <>
+              , die Ziehung samt <strong>Prüfsumme und Zufallszahl</strong> sowie
+              alle Gewinner und Nachrücker
+            </>
+          ) : null}
+          .{" "}
+          {giveaway.termsPublishedAt || giveaway.proofPublishedAt ? (
+            settings?.githubToken ? (
+              <>
+                Die <strong>veröffentlichte Seite wird mit entfernt</strong> und aus
+                der Übersicht genommen.
+              </>
+            ) : (
+              <>
+                <strong>Die veröffentlichte Seite bleibt online</strong> — ohne
+                hinterlegten GitHub-Schlüssel kann das Tool sie nicht entfernen.
+                Lösch dann <code className="rounded bg-slate-100 px-1">
+                  {giveaway.slug}.html
+                </code>{" "}
+                selbst aus deinem Repository.
+              </>
+            )
+          ) : null}
+        </p>
+
+        <ActionForm
+          action={deleteGiveaway.bind(null, id)}
+          submitLabel="Gewinnspiel endgültig löschen"
+          variant="danger"
+          confirm={`„${giveaway.title}“ endgültig löschen? Das lässt sich nicht rückgängig machen.`}
+        >
+          {/* Nach der Ziehung ist der Nachweis das, was schützt, falls jemand
+              die Verlosung anzweifelt — dieselbe Hürde wie bei GitHub. */}
+          {currentDraw?.drawnAt ? (
+            <Field
+              label="Zum Bestätigen den Titel eintippen"
+              hint="Diese Verlosung wurde bereits gezogen. Mit ihr verschwindet der Nachweis der fairen Ziehung."
+            >
+              <input
+                className={inputClass}
+                name="titelBestaetigung"
+                placeholder={giveaway.title}
+                autoComplete="off"
+              />
+            </Field>
+          ) : null}
+        </ActionForm>
+      </Card>
     </main>
   );
 }

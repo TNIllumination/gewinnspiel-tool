@@ -36,10 +36,3 @@ export function slugify(input: string): string {
       .slice(0, 60) || "gewinnspiel"
   );
 }
-
-/// Kürzt einen Benutzernamen für die öffentliche Anzeige: anna_berg → a****g
-export function maskUsername(username: string): string {
-  const u = username.replace(/^@/, "");
-  if (u.length <= 2) return `${u[0] ?? ""}*`;
-  return `${u[0]}${"*".repeat(Math.min(u.length - 2, 6))}${u[u.length - 1]}`;
-}

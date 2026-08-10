@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { maskUsername } from "@/lib/audit";
 import { prizeIdForSlot, resolveWinners } from "@/draw/promotion";
 import { Badge, Card, CardTitle, Notice, formatDateTime } from "@/components/ui";
 import { ImpressumLink } from "@/components/impressum-link";
@@ -37,8 +36,12 @@ export default async function PublicGiveawayPage({
 
   const draw = giveaway.draws[0];
   const revealed = Boolean(draw?.seedRevealedAt);
-  const show = (name: string) =>
-    giveaway.maskUsernames ? maskUsername(name) : `@${name}`;
+  // Namen werden nicht maskiert: Die Pruefsumme entsteht ueber die Klarnamen,
+  // und die veroeffentlichte Teilnehmerliste enthaelt sie ohnehin. Ein Schalter
+  // dafuer stand bis 1.0 im Datenmodell, war nirgends einstellbar und haette
+  // nur eine Sicherheit vorgetaeuscht, die es nicht gibt. Was oeffentlich wird,
+  // steht in der Datenschutzerklaerung.
+  const show = (name: string) => `@${name}`;
 
   // Wer belegt welchen Gewinnplatz? Nachrücker erben den Platz des
   // Abgelehnten — und damit dessen Gewinn.

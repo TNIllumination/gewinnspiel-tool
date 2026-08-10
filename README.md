@@ -64,6 +64,27 @@ Die Ziehung folgt einem **Commit-Reveal-Verfahren**:
 Wird die Liste nachträglich verändert, passt der Hash nicht mehr. Das ist der
 Unterschied zwischen „vertrau mir" und „rechne selbst nach".
 
+**Und „nachrechnen" ist wörtlich gemeint.** Wer zweifelt, braucht weder dieses Tool
+noch dein Vertrauen — nur Node.js und einen Befehl:
+
+```
+node pruefen.mjs https://deinname.github.io/gewinnspiele/verlosung.html
+```
+
+```
+Prüfsumme:    stimmt
+Ziehung:      stimmt
+```
+
+Beides prüft Verschiedenes: **Prüfsumme** belegt, dass an der Teilnehmerliste nichts
+verändert wurde, **Ziehung** belegt, dass die genannten Gewinner tatsächlich aus
+dieser Liste und dieser Zufallszahl folgen. Der Aufruf steht auf jeder
+veröffentlichten Seite mit drauf.
+
+`pruefen.mjs` ist bewusst ein **eigenständiger Nachbau** ohne jede Abhängigkeit und
+ohne eine Zeile aus `src/` — ein Prüfprogramm, das dieselben Zeilen benutzt wie das
+Geprüfte, beweist nichts. Die knapp hundert Zeilen sind zum Lesen gedacht.
+
 ## Starten
 
 **Auf dem eigenen Rechner — ohne Server, ohne Docker, ohne laufende Kosten.**
@@ -102,6 +123,7 @@ er erzeugt erfundene Teilnehmer und durchläuft den kompletten Ablauf.
 | `npx prisma studio` | Daten im Browser ansehen |
 | `npm run docs` | `ANLEITUNG.html` neu erzeugen |
 | `npm run update` | Auf die neueste Fassung aktualisieren |
+| `node pruefen.mjs <Adresse\|Datei>` | Eine veröffentlichte Ziehung unabhängig nachrechnen |
 
 ## Datenschutz
 

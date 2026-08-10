@@ -16,6 +16,9 @@ export interface PublishInput {
   organizer: string;
   contact: string;
   impressumUrl?: string | null;
+  /// Adresse dieser Seite — steht im Aufruf des Pruefprogramms, damit man ihn
+  /// abtippen kann, ohne die eigene Adresse selbst zusammensuchen zu muessen.
+  seiteUrl?: string | null;
   /// Erst nach der Ziehung gefüllt.
   draw?: {
     commitHash: string;
@@ -30,6 +33,14 @@ export interface PublishInput {
     entrants: Entrant[];
     winners: { platz: number; username: string; prize?: string | null; text: string }[];
     reserves: string[];
+    /// Die Reihenfolge, in der gezogen wurde — Benutzernamen nach Rang.
+    ///
+    /// Nicht dasselbe wie `winners`: Dort steht, **wer welchen Platz belegt**,
+    /// nachdem Nachruecker aufgerueckt sind. Nachrechnen laesst sich aber nur
+    /// die gezogene Reihenfolge, denn genau die ergibt sich aus Liste und
+    /// Zufallszahl. Ohne diese Angabe waere die Ziehung von aussen nicht mehr
+    /// ueberpruefbar, sobald jemand durch die Pruefung gefallen ist.
+    gezogeneReihenfolge?: string[];
   } | null;
 }
 
@@ -88,6 +99,24 @@ ${
   <dt>Zufallszahl</dt><dd><code>${escapeHtml(d.seed ?? "")}</code></dd>
 </dl>
 
+<h3 id="reihenfolge">Gezogene Reihenfolge</h3>
+<p>
+  Genau diese Reihenfolge hat die Ziehung ergeben — sie folgt aus Teilnehmerliste
+  und Zufallszahl und ist damit nachrechenbar. <strong>Wer oben welchen Platz
+  belegt, kann davon abweichen:</strong> Fällt jemand bei der Prüfung durch, rückt
+  der Nächste auf seinen Platz nach.
+</p>
+<p>
+  Angegeben ist die Kennung aus der Teilnehmerliste, nicht nur der Name: Wer auf
+  zwei Plattformen kommentiert hat, steht dort zweimal, und der Name allein wäre
+  nicht eindeutig.
+</p>
+<ol id="gezogen">
+${(d.gezogeneReihenfolge ?? [])
+  .map((name) => `  <li>${escapeHtml(name)}</li>`)
+  .join("\n")}
+</ol>
+
 <h3 id="teilnehmerliste">Teilnehmerliste</h3>
 <p>
   Genau dieser Text ist in die Prüfsumme eingegangen — Zeile für Zeile, in dieser
@@ -95,6 +124,27 @@ ${
   gefolgt von einer Zeile <code>--seed--</code> und der Zufallszahl.
 </p>
 <pre id="liste">${escapeHtml(canonicalize(d.entrants))}</pre>
+
+<h3 id="selbst-pruefen">Selbst nachrechnen</h3>
+<p>
+  Die Prüfsumme belegt, dass an der Teilnehmerliste nach der Veröffentlichung
+  <strong>nichts verändert</strong> wurde. Dass die gezogene Reihenfolge wirklich
+  aus dieser Liste und dieser Zufallszahl folgt, belegt sie <strong>nicht</strong> —
+  dafür muss man die Ziehung nachrechnen.
+</p>
+<p>
+  Dazu gibt es ein Prüfprogramm. Es braucht nur
+  <a href="https://nodejs.org">Node.js</a>, ist keine hundert Zeilen lang und
+  gehört nicht zum Tool, das die Ziehung durchgeführt hat:
+</p>
+<pre>node pruefen.mjs ${escapeHtml(input.seiteUrl ?? "diese-seite.html")}</pre>
+<p>
+  Das Programm liegt unter
+  <a href="https://github.com/TNIllumination/gewinnspiel-tool">github.com/TNIllumination/gewinnspiel-tool</a>.
+  Verfahren: SHA-256 über den Text oben, dann gewichtete Ziehung ohne Zurücklegen;
+  die Zufallszahlen stammen aus HMAC-SHA256 im Zählerbetrieb über die Zufallszahl,
+  Werte oberhalb der größten teilbaren Schranke werden verworfen.
+</p>
 `
     : d
       ? `
