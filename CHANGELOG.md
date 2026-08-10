@@ -1,5 +1,12 @@
 # Was sich geändert hat
 
+## 0.8.1
+
+- **Beitragsadresse einfügen statt suchen.** Neues Feld: Link aus der Instagram-App kopieren, *Beitrag suchen* drücken, fertig. Gesucht wird über deine eigene Beitragsliste — verglichen wird nur das Kürzel, damit `/p/` gegenüber `/reel/`, fehlendes `www` und angehängtes `?igsh=…` nichts ausmachen
+- **Ältere Beiträge sind wieder erreichbar.** Die Auswahlliste endete bei 25 Beiträgen und blätterte nicht weiter — ein Gewinnspiel-Beitrag von vor einem halben Jahr tauchte darin schlicht nicht auf. Jetzt gibt es *Ältere Beiträge laden*, und die Linksuche blättert von sich aus
+- Eine Adresse, die gar kein Beitrag ist (etwa dein Profil), wird als solche erkannt — ohne vorher Instagram zu fragen und dann „nicht gefunden" zu melden, was nach einem Problem mit dem Konto aussähe
+- Wird der Beitrag nicht gefunden, sagt die Meldung den wahrscheinlichen Grund: Abrufen geht nur bei **eigenen** Beiträgen
+
 ## 0.8.0
 
 - **Instagram-Kommentare kommen jetzt automatisch.** Konto einmal verbinden, Beitrag aus der Liste wählen, abrufen — vollständig, mit echtem Zeitstempel und ohne Scrollen

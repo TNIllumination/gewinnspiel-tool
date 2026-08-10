@@ -48,10 +48,11 @@ import {
   holeBeitraege,
   holeKommentare,
   pruefeZugang,
+  sucheBeitragPerLink,
   verlaengereToken,
 } from "@/platforms/instagram";
 import { generateSandboxComments } from "@/platforms/sandbox";
-import type { PlatformId } from "@/platforms/base";
+import type { MediaItem, PlatformId } from "@/platforms/base";
 
 async function requireUser() {
   const id = await getSessionUserId();
@@ -1610,7 +1611,7 @@ export interface BeitragsWahl {
 /// einer Kennung, und aus instagram.com/p/ABC123/ laesst sich diese Kennung
 /// offiziell nicht gewinnen. Also andersherum — und nebenbei sieht man so
 /// gleich, wie viele Kommentare Instagram selbst zaehlt.
-export async function instagramBeitraege() {
+export async function instagramBeitraege(nach: string | null = null) {
   return alsErgebnis(async () => {
     await requireUser();
     const token = await instagramZugang();
@@ -1621,16 +1622,51 @@ export async function instagramBeitraege() {
       );
     }
 
-    const beitraege = await holeBeitraege(token);
-    return {
-      beitraege: beitraege.map((b): BeitragsWahl => ({
-        externalId: b.externalId,
-        label: kurz(b.caption) || "(ohne Bildunterschrift)",
-        url: b.url,
-        am: b.publishedAt.toISOString(),
-        kommentare: b.commentCount ?? null,
-      })),
-    };
+    const { beitraege, weiter } = await holeBeitraege(token, { nach });
+    return { beitraege: beitraege.map(alsWahl), weiter };
+  });
+}
+
+function alsWahl(b: MediaItem): BeitragsWahl {
+  return {
+    externalId: b.externalId,
+    label: kurz(b.caption) || "(ohne Bildunterschrift)",
+    url: b.url,
+    am: b.publishedAt.toISOString(),
+    kommentare: b.commentCount ?? null,
+  };
+}
+
+/// Sucht den Beitrag zu einer eingefuegten Adresse und merkt ihn sich.
+///
+/// Der Weg fuer aeltere Beitraege: Statt sich durch die Liste zu blaettern,
+/// fuegt man die Adresse ein. Gesucht wird ueber die eigene Beitragsliste,
+/// deshalb geht es **nur mit eigenen** Beitraegen — und genau das muss die
+/// Meldung sagen, statt bloss „nicht gefunden".
+export async function waehleBeitragPerLink(giveawayId: string, url: string) {
+  return alsErgebnis(async () => {
+    await requireUser();
+    const token = await instagramZugang();
+    if (!token) {
+      fail(
+        "Es ist kein Instagram-Schlüssel hinterlegt. Trag ihn unter Einstellungen " +
+          "ein — dort steht auch, wie du ihn bekommst.",
+      );
+    }
+
+    const treffer = await sucheBeitragPerLink(token, url);
+    if (!treffer) {
+      fail(
+        "Zu dieser Adresse wurde unter deinen Beiträgen keiner gefunden. Abrufen " +
+          "lassen sich nur Kommentare unter **eigenen** Beiträgen des verbundenen " +
+          "Kontos — bei einem fremden Beitrag geht es grundsätzlich nicht. Ist es " +
+          "deiner: Prüf, ob der Schlüssel zum richtigen Konto gehört.",
+      );
+    }
+
+    const wahl = alsWahl(treffer);
+    await waehleBeitrag(giveawayId, wahl.externalId, wahl.label, wahl.url);
+    return { gewaehlt: wahl };
   });
 }
 

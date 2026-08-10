@@ -26,7 +26,7 @@
   Zeilen werden gemeldet, nicht verschluckt.
 - **Testmodus** (`src/platforms/sandbox.ts`): erfundene Teilnehmer für den
   kompletten Ablauf ohne echte Daten.
-- **252 Tests**, alle grün (`npm test`).
+- **262 Tests**, alle grün (`npm test`).
 
 - **Oberfläche Phase 1 vollständig**: Ersteinrichtung und Login (Cookie-Session
   mit `jose`, bcrypt-Hash), Dashboard, Gewinnspiel-Detailseite mit Import, Regeln,
@@ -150,6 +150,19 @@
   Format zu verhunzen. Dabei gefunden: `parseInstagram` filterte `isNoise` nicht —
   „Antworten" klebte hinten am Kommentartext, in der deutschen Beispieldatei nur
   zufaellig nicht sichtbar.
+
+- **Fassung 0.8.1**: `kuerzelAusLink` und `sucheBeitragPerLink` in
+  `src/platforms/instagram.ts`. Aus der Beitragsadresse laesst sich die Kennung
+  offiziell nicht gewinnen — man braucht es aber nicht: Die eigene Beitragsliste
+  liefert zu jedem Beitrag den `permalink` mit, also wird sie durchgeblaettert, bis
+  das Kuerzel passt (hoechstens 20 Seiten à 50). Verglichen wird nur das Kuerzel,
+  nie die volle Adresse: `/p/` gegen `/reel/`, fehlendes `www`, angehaengtes
+  `?igsh=…`.
+  `holeBeitraege` gibt jetzt `{ beitraege, weiter }` zurueck und blaettert —
+  vorher endete die Auswahlliste nach einer Seite bei 25 Beitraegen, und ein
+  aelterer war **gar nicht** erreichbar. Das war eine Luecke, kein Limit von
+  Instagram; beim Abrufen der Kommentare wurde von Anfang an sauber geblaettert.
+  Ein Beitrag je Gewinnspiel bleibt bewusst so (`@@unique([giveawayId, platform])`).
 
 ## Als Nächstes
 

@@ -3,7 +3,9 @@ import {
   InstagramError,
   holeBeitraege,
   holeKommentare,
+  kuerzelAusLink,
   pruefeZugang,
+  sucheBeitragPerLink,
   verlaengereToken,
 } from "@/platforms/instagram";
 
@@ -272,7 +274,7 @@ describe("holeBeitraege", () => {
       },
     });
 
-    const [beitrag] = await holeBeitraege("T");
+    const { beitraege: [beitrag] } = await holeBeitraege("T");
     expect(beitrag.externalId).toBe("18000");
     expect(beitrag.caption).toBe("Großes Gewinnspiel!");
     expect(beitrag.commentCount).toBe(137);
@@ -281,8 +283,96 @@ describe("holeBeitraege", () => {
 
   it("kommt mit einem Beitrag ohne Bildunterschrift zurecht", async () => {
     antworten({ body: { data: [{ id: "1", permalink: "https://…" }] } });
-    const [beitrag] = await holeBeitraege("T");
+    const { beitraege: [beitrag] } = await holeBeitraege("T");
     expect(beitrag.caption).toBe("");
     expect(beitrag.commentCount).toBeNull();
+  });
+});
+
+describe("kuerzelAusLink", () => {
+  // Dieselbe Aufnahme heißt mal /p/, mal /reel/, mal mit www, mal ohne — und
+  // beim Teilen aus der App hängt ?igsh=… dran. Verglichen wird deshalb nur
+  // das Kürzel, nie die ganze Adresse.
+  const gleiche = [
+    "https://www.instagram.com/p/C8xYz_1AbCd/",
+    "https://instagram.com/p/C8xYz_1AbCd",
+    "http://www.instagram.com/reel/C8xYz_1AbCd/",
+    "https://www.instagram.com/reel/C8xYz_1AbCd/?igsh=MTk4Zm0y&img_index=1",
+    "instagram.com/tv/C8xYz_1AbCd/",
+  ];
+
+  for (const adresse of gleiche) {
+    it(`liest das Kürzel aus ${adresse.slice(0, 42)}`, () => {
+      expect(kuerzelAusLink(adresse)).toBe("C8xYz_1AbCd");
+    });
+  }
+
+  it("gibt bei allem anderen null zurück", () => {
+    expect(kuerzelAusLink("")).toBeNull();
+    expect(kuerzelAusLink("   ")).toBeNull();
+    expect(kuerzelAusLink("https://www.instagram.com/tnillumination/")).toBeNull();
+    expect(kuerzelAusLink("https://www.tiktok.com/@ich/video/123")).toBeNull();
+    expect(kuerzelAusLink("Guck mal hier")).toBeNull();
+  });
+});
+
+describe("sucheBeitragPerLink", () => {
+  const beitrag = (id: string, kuerzel: string) => ({
+    id,
+    caption: `Beitrag ${id}`,
+    permalink: `https://www.instagram.com/p/${kuerzel}/`,
+    timestamp: "2026-02-01T09:00:00+0000",
+    comments_count: 12,
+  });
+
+  const seite = (eintraege: unknown[], weiter: string | null) => ({
+    body: {
+      data: eintraege,
+      paging: weiter
+        ? { cursors: { after: weiter }, next: "https://…" }
+        : { cursors: { after: "ENDE" } },
+    },
+  });
+
+  it("findet einen Beitrag auf der ersten Seite", async () => {
+    antworten(seite([beitrag("1", "AAA"), beitrag("2", "BBB")], null));
+    const treffer = await sucheBeitragPerLink(
+      "T",
+      "https://www.instagram.com/p/BBB/",
+    );
+    expect(treffer?.externalId).toBe("2");
+  });
+
+  // Der eigentliche Zweck: Ein Beitrag von vor einem halben Jahr steht nicht
+  // auf der ersten Seite. Vorher war die Liste bei 25 zu Ende und er war
+  // schlicht nicht erreichbar.
+  it("blättert weiter, bis der Beitrag gefunden ist", async () => {
+    const aufrufe = antworten(
+      seite([beitrag("1", "AAA")], "CURSOR_1"),
+      seite([beitrag("2", "BBB")], "CURSOR_2"),
+      seite([beitrag("3", "ALT")], null),
+    );
+
+    const treffer = await sucheBeitragPerLink(
+      "T",
+      "https://www.instagram.com/reel/ALT/?igsh=xyz",
+    );
+    expect(treffer?.externalId).toBe("3");
+    expect(aufrufe).toHaveLength(3);
+    expect(aufrufe[2].searchParams.get("after")).toBe("CURSOR_2");
+  });
+
+  it("hört auf, wenn es keine weitere Seite gibt", async () => {
+    const aufrufe = antworten(seite([beitrag("1", "AAA")], null));
+    expect(
+      await sucheBeitragPerLink("T", "https://www.instagram.com/p/GIBTSNICHT/"),
+    ).toBeNull();
+    expect(aufrufe).toHaveLength(1);
+  });
+
+  it("erklärt eine Adresse, die gar kein Beitrag ist", async () => {
+    await expect(
+      sucheBeitragPerLink("T", "https://www.instagram.com/tnillumination/"),
+    ).rejects.toThrow(/Adresse eines Instagram-Beitrags/);
   });
 });

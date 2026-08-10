@@ -197,26 +197,103 @@ export async function verlaengereToken(token: string): Promise<NeuerSchluessel> 
 
 // ── Beitraege ───────────────────────────────────────────────────────────────
 
-/// Die letzten eigenen Beitraege, zum Anklicken.
+export interface Beitragsseite {
+  beitraege: MediaItem[];
+  /// Cursor der naechsten Seite — null, wenn es keine mehr gibt.
+  weiter: string | null;
+}
+
+/// Eine Seite der eigenen Beitraege, zum Anklicken.
 ///
-/// Warum nicht einfach die Beitragsadresse eintippen: Die Schnittstelle
-/// arbeitet mit einer Kennung, und es gibt keinen offiziellen Weg, aus
-/// instagram.com/p/ABC123/ diese Kennung zu machen. Also andersherum.
-export async function holeBeitraege(token: string, anzahl = 25): Promise<MediaItem[]> {
-  const { data } = await hole("/me/media", {
+/// Geblaettert wird bewusst seitenweise statt alles auf einmal: Wer 800
+/// Beitraege hat, wartet sonst beim ersten Klick minutenlang auf eine Liste,
+/// aus der er ohnehin den obersten waehlt.
+export async function holeBeitraege(
+  token: string,
+  optionen: { anzahl?: number; nach?: string | null } = {},
+): Promise<Beitragsseite> {
+  return holeMediaSeite(token, optionen.anzahl ?? 25, optionen.nach ?? null);
+}
+
+async function holeMediaSeite(
+  token: string,
+  anzahl: number,
+  nach: string | null,
+): Promise<Beitragsseite> {
+  const params: Record<string, string> = {
     fields: "id,caption,media_type,permalink,timestamp,comments_count",
     limit: String(Math.min(Math.max(anzahl, 1), 50)),
     access_token: token,
-  });
+  };
+  if (nach) params.after = nach;
+
+  const { data } = await hole("/me/media", params);
 
   const roh = Array.isArray(data.data) ? (data.data as Record<string, unknown>[]) : [];
-  return roh.map((m) => ({
-    externalId: String(m.id ?? ""),
-    caption: String(m.caption ?? "").trim(),
-    url: String(m.permalink ?? ""),
-    publishedAt: datum(m.timestamp) ?? new Date(),
-    commentCount: zahlOderNull(m.comments_count),
-  }));
+  const paging = (data.paging ?? {}) as Record<string, unknown>;
+  const cursors = (paging.cursors ?? {}) as Record<string, unknown>;
+
+  return {
+    beitraege: roh.map((m) => ({
+      externalId: String(m.id ?? ""),
+      caption: String(m.caption ?? "").trim(),
+      url: String(m.permalink ?? ""),
+      publishedAt: datum(m.timestamp) ?? new Date(),
+      commentCount: zahlOderNull(m.comments_count),
+    })),
+    weiter: paging.next && cursors.after ? String(cursors.after) : null,
+  };
+}
+
+/// Das Kuerzel aus einer Beitragsadresse: `.../p/ABC123/` → `ABC123`.
+///
+/// Verglichen wird nur dieses Kuerzel, nie die ganze Adresse. Dieselbe
+/// Aufnahme heisst mal `/p/`, mal `/reel/`, mal mit `www`, mal ohne, und beim
+/// Teilen aus der App haengt `?igsh=…` daran. Ein Vergleich der vollen
+/// Adressen wuerde an jeder dieser Kleinigkeiten scheitern.
+export function kuerzelAusLink(input: string): string | null {
+  const s = input.trim();
+  if (!s) return null;
+  const treffer = s.match(
+    /instagram\.com\/(?:[^/?#]+\/)?(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/i,
+  );
+  return treffer ? treffer[1] : null;
+}
+
+/// Wie viele Seiten beim Suchen hoechstens durchgeblaettert werden.
+/// 20 × 50 sind 1000 Beitraege — wer mehr hat, waehlt aus der Liste.
+const MAX_SUCHSEITEN = 20;
+
+/// Sucht den Beitrag zu einer eingefuegten Adresse.
+///
+/// Aus der Adresse allein laesst sich die Kennung nicht gewinnen, die die
+/// Schnittstelle braucht — dafuer gibt es keinen offiziellen Weg. Man braucht
+/// ihn aber auch nicht: Die eigene Beitragsliste liefert zu jedem Beitrag
+/// seine Adresse gleich mit. Also wird sie durchgeblaettert, bis das Kuerzel
+/// passt. Nebenbei loest das die zweite Grenze — auch ein Beitrag von vor
+/// einem halben Jahr wird so gefunden, ohne sich durch die Liste zu klicken.
+export async function sucheBeitragPerLink(
+  token: string,
+  url: string,
+): Promise<MediaItem | null> {
+  const kuerzel = kuerzelAusLink(url);
+  if (!kuerzel) {
+    throw new InstagramError(
+      "Das sieht nicht nach der Adresse eines Instagram-Beitrags aus. Erwartet " +
+        "wird etwas wie https://www.instagram.com/p/ABC123/ oder .../reel/ABC123/ — " +
+        "in der App bekommst du sie über „Teilen“ → „Link kopieren“.",
+    );
+  }
+
+  let nach: string | null = null;
+  for (let seite = 0; seite < MAX_SUCHSEITEN; seite++) {
+    const { beitraege, weiter }: Beitragsseite = await holeMediaSeite(token, 50, nach);
+    const treffer = beitraege.find((b) => kuerzelAusLink(b.url) === kuerzel);
+    if (treffer) return treffer;
+    if (!weiter) return null;
+    nach = weiter;
+  }
+  return null;
 }
 
 // ── Kommentare ──────────────────────────────────────────────────────────────

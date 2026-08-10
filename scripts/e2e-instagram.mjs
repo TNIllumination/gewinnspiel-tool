@@ -142,6 +142,22 @@ try {
     ok("Ohne gewählten Beitrag wird Abrufen nicht angeboten");
   }
 
+  // ── Linkfeld: Unsinn wird als Unsinn erkannt, ohne Netzzugriff ────────────
+  // Eine Adresse, die gar kein Beitrag ist, darf nicht erst Instagram fragen
+  // und dann „nicht gefunden" melden — das sähe aus, als läge es am Konto.
+  await page.fill('input[name="beitragsLink"]', "https://www.instagram.com/tnillumination/");
+  await page.getByRole("button", { name: "Beitrag suchen" }).click();
+  await page.waitForTimeout(3000);
+
+  const linkFehler = await page.locator('[role="alert"]').first().innerText();
+  if (!lesbar(linkFehler, "Beitrag suchen")) {
+    // Meldung schon ausgegeben
+  } else if (!/Adresse eines Instagram-Beitrags/i.test(linkFehler)) {
+    no("Linkfeld", `erklärt die falsche Adresse nicht: ${linkFehler.slice(0, 90)}`);
+  } else {
+    ok("Profiladresse wird als kein Beitrag erkannt", linkFehler.slice(0, 50));
+  }
+
   await page.getByRole("button", { name: "Beitrag auswählen" }).click();
   await page.waitForTimeout(8000);
   const beitragsFehler = await page.locator('[role="alert"]').first().innerText();

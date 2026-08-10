@@ -25,6 +25,7 @@ import {
   saveRules,
   submitVerification,
   waehleBeitrag,
+  waehleBeitragPerLink,
 } from "../actions";
 import { ActionForm } from "@/components/action-form";
 import { ManualImport } from "@/components/manual-import";
@@ -439,6 +440,7 @@ export default async function GiveawayPage({
                 <InstagramAbruf
                   beitraege={instagramBeitraege}
                   waehlen={waehleBeitrag.bind(null, id)}
+                  waehlenPerLink={waehleBeitragPerLink.bind(null, id)}
                   abrufen={importInstagram.bind(null, id)}
                   gewaehlt={instaAbruf.quelle.externalId}
                   gewaehltesLabel={instaAbruf.quelle.postLabel}

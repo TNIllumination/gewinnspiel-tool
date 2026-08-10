@@ -111,8 +111,12 @@ So läuft es:
 
 1. Einmalig unter **Einstellungen → Instagram verbinden** einrichten (Anleitung
    steht dort aufklappbar, Schritt für Schritt)
-2. Im Gewinnspiel bei **Teilnahmen einlesen** auf *Beitrag auswählen* — das Tool
-   listet deine letzten Beiträge mit Bildunterschrift und Kommentarzahl
+2. Im Gewinnspiel bei **Teilnahmen einlesen** den Beitrag festlegen — auf zwei Wegen:
+   - *Beitrag auswählen* listet deine letzten 25 Beiträge mit Bildunterschrift und
+     Kommentarzahl. Weiter unten in der Liste steht *Ältere Beiträge laden*
+   - Oder die **Adresse des Beitrags einfügen** und auf *Beitrag suchen* drücken.
+     Der schnellere Weg bei älteren Beiträgen. Die Adresse bekommst du in der App
+     über „Teilen" → „Link kopieren"
 3. *Kommentare abrufen* drücken. Mehrfach drücken ist erlaubt: Was schon drin ist,
    wird erkannt und nicht doppelt gezählt
 
@@ -136,6 +140,15 @@ auch.
 Restlaufzeit im Dashboard. *Schlüssel verlängern* unter Einstellungen setzt die 60
 Tage zurück, ohne Umweg über Meta. Ist er einmal abgelaufen, hilft nur ein neuer.
 Verlängern klappt erst, wenn der Schlüssel einen Tag alt ist.
+
+**Ein Beitrag je Gewinnspiel.** Instagram hätte nichts dagegen, mehrere abzurufen —
+das Tool sieht bisher einen vor. Läuft eine Verlosung mal über zwei Beiträge, sag
+Bescheid, dann wird es erweitert.
+
+**Nur eigene Beiträge.** Gesucht wird in deiner eigenen Beitragsliste. Der Link zu
+einem fremden Beitrag wird deshalb nicht gefunden — das ist keine Panne, sondern die
+Grenze der Schnittstelle: Kommentare unter fremden Beiträgen gibt Instagram
+grundsätzlich nicht heraus.
 
 **Was auch mit Anbindung Handarbeit bleibt:** Wer geliked hat und wer dir folgt,
 gibt Instagram grundsätzlich nicht heraus. Das wird bei Gewinnern und Nachrückern

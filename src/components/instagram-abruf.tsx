@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button, Notice } from "./ui";
+import { Button, Notice, inputClass } from "./ui";
 
 interface Beitrag {
   externalId: string;
@@ -19,16 +19,22 @@ interface Beitrag {
 export function InstagramAbruf({
   beitraege,
   waehlen,
+  waehlenPerLink,
   abrufen,
   gewaehlt,
   gewaehltesLabel,
 }: {
-  beitraege: () => Promise<{ beitraege?: Beitrag[]; fehler?: string }>;
+  beitraege: (
+    nach?: string | null,
+  ) => Promise<{ beitraege?: Beitrag[]; weiter?: string | null; fehler?: string }>;
   waehlen: (
     externalId: string,
     label: string,
     url: string,
   ) => Promise<{ fehler?: string } | void>;
+  waehlenPerLink: (
+    url: string,
+  ) => Promise<{ gewaehlt?: Beitrag; fehler?: string } | void>;
   abrufen: () => Promise<{
     added?: number;
     skipped?: number;
@@ -39,6 +45,8 @@ export function InstagramAbruf({
   gewaehltesLabel: string | null;
 }) {
   const [liste, setListe] = useState<Beitrag[] | null>(null);
+  const [weiter, setWeiter] = useState<string | null>(null);
+  const [link, setLink] = useState("");
   const [meldung, setMeldung] = useState<string | null>(null);
   const [hinweise, setHinweise] = useState<string[]>([]);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -82,7 +90,10 @@ export function InstagramAbruf({
             run(async () => {
               const ergebnis = await beitraege();
               if (ergebnis.fehler) setFehler(ergebnis.fehler);
-              else setListe(ergebnis.beitraege ?? []);
+              else {
+                setListe(ergebnis.beitraege ?? []);
+                setWeiter(ergebnis.weiter ?? null);
+              }
             })
           }
         >
@@ -115,6 +126,44 @@ export function InstagramAbruf({
             Kommentare abrufen
           </Button>
         ) : null}
+      </div>
+
+      {/* Der Weg für ältere Beiträge: Statt sich durch die Liste zu blättern,
+          fügt man die Adresse ein. Gesucht wird über die eigene Beitragsliste,
+          deshalb geht es nur mit eigenen Beiträgen. */}
+      <div className="mt-3 flex flex-wrap items-end gap-2">
+        <label className="flex-1 text-xs text-slate-600">
+          <span className="mb-1 block">
+            Oder Adresse des Beitrags einfügen — auch für ältere
+          </span>
+          <input
+            className={inputClass}
+            name="beitragsLink"
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            placeholder="https://www.instagram.com/p/ABC123/"
+          />
+        </label>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={pending || !link.trim()}
+          onClick={() =>
+            run(async () => {
+              const ergebnis = await waehlenPerLink(link);
+              if (ergebnis?.fehler) setFehler(ergebnis.fehler);
+              else {
+                setListe(null);
+                setLink("");
+                setMeldung(
+                  `Beitrag gewählt: ${ergebnis?.gewaehlt?.label ?? "gefunden"}`,
+                );
+              }
+            })
+          }
+        >
+          Beitrag suchen
+        </Button>
       </div>
 
       {liste ? (
@@ -160,6 +209,30 @@ export function InstagramAbruf({
                 </button>
               </li>
             ))}
+
+            {/* Ohne das war bei 25 Beiträgen Schluss — ein älterer war
+                schlicht nicht erreichbar. */}
+            {weiter ? (
+              <li>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={pending}
+                  onClick={() =>
+                    run(async () => {
+                      const ergebnis = await beitraege(weiter);
+                      if (ergebnis.fehler) setFehler(ergebnis.fehler);
+                      else {
+                        setListe([...liste, ...(ergebnis.beitraege ?? [])]);
+                        setWeiter(ergebnis.weiter ?? null);
+                      }
+                    })
+                  }
+                >
+                  Ältere Beiträge laden
+                </Button>
+              </li>
+            ) : null}
           </ul>
         )
       ) : null}
